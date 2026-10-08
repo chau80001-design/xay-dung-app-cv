@@ -37,7 +37,7 @@ const msalConfig = {
     auth: {
         clientId: "ba146a0f-5848-4018-9054-eccf08c8b925",
         authority: "https://login.microsoftonline.com/common",
-        redirectUri: "https://github.io",
+        redirectUri: window.location.origin + window.location.pathname,
     },
     cache: {
         cacheLocation: "sessionStorage",
@@ -45,32 +45,43 @@ const msalConfig = {
     }
 };
 
-
-// ĐÚNG: Gọi trực tiếp đối tượng msal toàn cục từ thư viện
+// Khởi tạo MSAL lazy - chỉ tạo khi cần thiết
 let myMSALObj = null;
-try {
-    myMSALObj = new msal.PublicClientApplication(msalConfig);
-} catch (e) {
-    console.warn("MSAL chưa sẵn sàng (CDN chưa tải). Tính năng OneDrive sẽ tắt.", e);
+
+function getMSALInstance() {
+    if (!myMSALObj) {
+        if (typeof msal === 'undefined' || !msal.PublicClientApplication) {
+            console.error("Thư viện MSAL chưa tải xong");
+            return null;
+        }
+        try {
+            myMSALObj = new msal.PublicClientApplication(msalConfig);
+        } catch (e) {
+            console.error("Lỗi khởi tạo MSAL:", e);
+            return null;
+        }
+    }
+    return myMSALObj;
 }
 
 let graphToken = null;
-const FILE_NAME_ONEDRIVE = "dbCongViec_Data.json"; // Tên file tự động sinh ra trên OneDrive
+const FILE_NAME_ONEDRIVE = "dbCongViec_Data.json";
 
 // 1. HÀM ĐĂNG NHẬP TÀI KHOẢN MICROSOFT
 async function dangNhapOneDrive() {
-    if (!myMSALObj) {
-        alert("Thư viện MSAL chưa được tải. Vui lòng kiểm tra kết nối mạng!");
+    const msalInstance = getMSALInstance();
+    if (!msalInstance) {
+        alert("Thư viện MSAL chưa được tải. Vui lòng kiểm tra kết nối mạng và tải lại trang!");
         return;
     }
     try {
-        const loginResponse = await myMSALObj.loginPopup({
+        const loginResponse = await msalInstance.loginPopup({
             scopes: ["Files.ReadWrite", "User.Read"]
         });
-        myMSALObj.setActiveAccount(loginResponse.account);
+        msalInstance.setActiveAccount(loginResponse.account);
         
         // Lấy Token để gọi API
-        const tokenResponse = await myMSALObj.acquireTokenSilent({
+        const tokenResponse = await msalInstance.acquireTokenSilent({
             scopes: ["Files.ReadWrite"]
         });
         graphToken = tokenResponse.accessToken;
