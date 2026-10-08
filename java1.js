@@ -37,7 +37,7 @@ const msalConfig = {
     auth: {
         clientId: "ba146a0f-5848-4018-9054-eccf08c8b925",
         authority: "https://login.microsoftonline.com/common",
-        redirectUri: window.location.origin + "/",  // Chỉ origin, không có pathname
+        redirectUri: "https://YOUR_USERNAME.github.io/YOUR_REPO_NAME/",  // Thay bằng URL GitHub Pages thực tế
     },
     cache: {
         cacheLocation: "sessionStorage",
