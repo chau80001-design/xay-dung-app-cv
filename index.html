@@ -4,11 +4,17 @@
     
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Nhúng thư viện MSAL.js từ CDN chính thức đã sửa đường dẫn -->
-    <script src="https://alcdn.msauth.net"></script>
-    <script src="java1.js"></script>
-    <title>Hệ Thống Quản Lý Giao Việc</title>
     
+    
+    <title>Hệ Thống Quản Lý Giao Việc</title>
+    <!-- Nhúng thư viện MSAL.js từ CDN chính thức đã sửa đường dẫn -->
+    <script src="https://alcdn.msauth.net/npm@2.31.0/lib/msal-browser.js"></script>
+    <script>
+        const msal = window.msal || window.msalBrowser || { PublicClientApplication: window.PublicClientApplication };
+    </script>
+
+
+
     <style>
         /* --- CSS THUẦN CHẠY OFFLINE KHÔNG CẦN INTERNET --- */
         * { box-sizing: border-box; font-family: Arial, sans-serif; margin: 0; padding: 0; }
@@ -52,6 +58,8 @@
         .btn-success { background-color: #198754; color: white; }
         .btn-danger { background-color: #dc3545; color: white; }
         .btn-danger:disabled, .btn-success:disabled { background-color: #cccccc; cursor: not-allowed; }
+        .btn-info { background-color: #0dcaf0; color: #333; }
+        .btn-info:hover { background-color: #0bb3d1; }
         .btn-outline { border: 1px solid #6c757d; background: transparent; color: #6c757d; }
         .btn-block { width: 100%; display: block; }
         .btn-xs { padding: 4px 8px; font-size: 12px; }
@@ -183,7 +191,6 @@
                 </table>
             </div>
         </div>
-    </div>
 
 
 
@@ -287,8 +294,8 @@
                 </div>
             </div>
         </div>
+    </div>
 
-        
 
     <!-- HỘP THOẠI ĐĂNG NHẬP / ĐĂNG KÝ (MODAL POPUP) -->
     <div id="overlay" onclick="closeAuthModal()"></div>
@@ -329,6 +336,7 @@
     </div>
 
     <!-- KHU VỰC LIÊN KẾT FILE JAVASCRIPT -->
+     <script src="java1.js"></script>
 
 </body>
 </html>

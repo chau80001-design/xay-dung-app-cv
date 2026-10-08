@@ -1,44 +1,85 @@
 // --- QUẢN LÝ DỮ LIỆU HỆ THỐNG (Tích hợp LocalStorage & Base64) ---
-// let dbCongViec = JSON.parse(localStorage.getItem('dbCongViec_Data')) || []; 
-// let isLoggedIn = false;
+let dbCongViec = JSON.parse(localStorage.getItem('dbCongViec_Data')) || [];
+let isLoggedIn = false;
+let currentUser = null;
+
+// Danh sách tài khoản người dùng (mật khẩu đã mã hóa base64)
+const userAccounts = [
+    { username: "admin",  password: "YWRtaW4xMjM=", role: "admin",  department: "Quản trị viên" },
+    { username: "qlgt",   password: "cWxndDEyMw==", role: "member", department: "Đội QLGT" },
+    { username: "qlml",   password: "cWxtbDEyMw==", role: "member", department: "Đội QLML" },
+    { username: "kd",     password: "a2QxMjM=",     role: "member", department: "Ban KinhDoanh" },
+    { username: "vattu",  password: "dnQxMjM=",     role: "member", department: "Ban Kế hoạch vật tư" },
+];
 
 // Hàm lưu mảng dữ liệu vào bộ nhớ trình duyệt
-// function luuVaoLocalStorage() {
-//     localStorage.setItem('dbCongViec_Data', JSON.stringify(dbCongViec));
-// }
+function luuVaoLocalStorage() {
+    luuVaoOneDrive();
+}
+
+// Hàm kiểm tra file ảnh hợp lệ (kiểu và kích thước)
+function validateImage(file) {
+    if (!file.type.startsWith('image/')) {
+        alert("File tải lên phải là định dạng ảnh (JPG, PNG, GIF)!");
+        return false;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+        alert("Kích thước ảnh không được vượt quá 5MB!");
+        return false;
+    }
+    return true;
+}
 
 
 
 // --- CẤU HÌNH KẾT NỐI ONEDRIVE (MICROSOFT GRAPH API) ---
 const msalConfig = {
     auth: {
-        clientId: "f686d1a5-fff2-4671-b78a-d9efb7f9c1d4", // Bạn cần điền Client ID đăng ký trên Azure vào đây
-        
-        redirectUri: window.location.origin + window.location.pathname
+        clientId: "ba146a0f-5848-4018-9054-eccf08c8b925",
+        authority: "https://login.microsoftonline.com/common",
+        redirectUri: "https://github.io",
     },
-    cache: { cacheLocation: "sessionStorage" }
+    cache: {
+        cacheLocation: "sessionStorage",
+        storeAuthStateInCookie: false,
+    }
 };
 
-const myMSALObj = new msal.PublicClientApplication(msalConfig);
+
+// ĐÚNG: Gọi trực tiếp đối tượng msal toàn cục từ thư viện
+let myMSALObj = null;
+try {
+    myMSALObj = new msal.PublicClientApplication(msalConfig);
+} catch (e) {
+    console.warn("MSAL chưa sẵn sàng (CDN chưa tải). Tính năng OneDrive sẽ tắt.", e);
+}
+
 let graphToken = null;
 const FILE_NAME_ONEDRIVE = "dbCongViec_Data.json"; // Tên file tự động sinh ra trên OneDrive
 
 // 1. HÀM ĐĂNG NHẬP TÀI KHOẢN MICROSOFT
 async function dangNhapOneDrive() {
+    if (!myMSALObj) {
+        alert("Thư viện MSAL chưa được tải. Vui lòng kiểm tra kết nối mạng!");
+        return;
+    }
     try {
-        const loginResponse = await msalInstance.loginPopup({
+        const loginResponse = await myMSALObj.loginPopup({
             scopes: ["Files.ReadWrite", "User.Read"]
         });
-        msalInstance.setActiveAccount(loginResponse.account);
+        myMSALObj.setActiveAccount(loginResponse.account);
         
         // Lấy Token để gọi API
-        const tokenResponse = await msalInstance.acquireTokenSilent({
+        const tokenResponse = await myMSALObj.acquireTokenSilent({
             scopes: ["Files.ReadWrite"]
         });
         graphToken = tokenResponse.accessToken;
-        
-        document.getElementById('btnOneDriveAuth').innerHTML = "🟢 Đã kết nối OneDrive";
-        document.getElementById('btnOneDriveAuth').classList.replace("btn-primary", "btn-success");
+
+        const btnAuth = document.getElementById('btnOneDriveAuth');
+        if (btnAuth) {
+            btnAuth.innerHTML = "🟢 Đã kết nối OneDrive";
+            btnAuth.classList.replace("btn-primary", "btn-success");
+        }
         
         // Sau khi đăng nhập thành công, tự động tải dữ liệu từ OneDrive về app
         await taiDuLieuTuOneDrive();
@@ -50,14 +91,14 @@ async function dangNhapOneDrive() {
 
 // 2. HÀM ĐỒNG BỘ ĐẨY DỮ LIỆU LÊN ONEDRIVE (Thay thế luuVaoLocalStorage)
 async function luuVaoOneDrive() {
+    localStorage.setItem('dbCongViec_Data', JSON.stringify(dbCongViec));
+
     if (!graphToken) {
-        // Nếu chưa đăng nhập OneDrive, tạm thời lưu vào LocalStorage cứu cánh
-        localStorage.setItem('dbCongViec_Data', JSON.stringify(dbCongViec));
         return;
     }
 
     try {
-        const url = `https://microsoft.com{FILE_NAME_ONEDRIVE}:/content`;
+        const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${FILE_NAME_ONEDRIVE}:/content`;
         const response = await fetch(url, {
             method: "PUT",
             headers: {
@@ -79,7 +120,7 @@ async function taiDuLieuTuOneDrive() {
     if (!graphToken) return;
     
     try {
-        const url = `https://microsoft.com{FILE_NAME_ONEDRIVE}:/content`;
+        const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${FILE_NAME_ONEDRIVE}:/content`;
         const response = await fetch(url, {
             headers: { "Authorization": `Bearer ${graphToken}` }
         });
@@ -90,17 +131,12 @@ async function taiDuLieuTuOneDrive() {
             await luuVaoOneDrive();
         } else if (response.ok) {
             dbCongViec = await response.json();
+            console.log("Đã tải dữ liệu từ OneDrive thành công!", dbCongViec);
         }
-        
         renderAllTables();
     } catch (error) {
         console.error("Lỗi tải dữ liệu OneDrive:", error);
     }
-}
-
-// Sửa lại hàm lưu mặc định cũ của bạn để nó tự gọi qua hàm OneDrive mới
-function luuVaoLocalStorage() {
-    luuVaoOneDrive();
 }
 
 
@@ -130,13 +166,38 @@ function switchForm(formType) {
 
 // 3. XỬ LÝ ĐĂNG NHẬP THÀNH CÔNG (Mở khóa hệ thống)
 function handleAuth() {
+    const formType = document.getElementById('login-form').style.display === 'block' ? 'login' : 'register';
+    const form = formType === 'login' ? document.getElementById('login-form') : document.getElementById('register-form');
+    const usernameInput = form.querySelector('input[type="text"]');
+    const passwordInput = form.querySelector('input[type="password"]');
+    const username = usernameInput ? usernameInput.value.trim() : '';
+    const password = passwordInput ? passwordInput.value : '';
+
+    if (!username || !password) {
+        alert("Vui lòng nhập đầy đủ tên tài khoản và mật khẩu!");
+        return;
+    }
+
+    if (formType === 'register') {
+        alert("Đăng ký tài khoản mới đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.");
+        return;
+    }
+
+    const encodedPassword = btoa(password);
+    const user = userAccounts.find(u => u.username === username);
+    if (!user || user.password !== encodedPassword) {
+        alert("Tên tài khoản hoặc mật khẩu không đúng!");
+        return;
+    }
+
     isLoggedIn = true;
-    document.getElementById('userStatus').innerHTML = 'Trạng thái: <span class="badge badge-success">Thành viên Hệ thống (Đang hoạt động)</span>';
+    currentUser = user;
+    document.getElementById('userStatus').innerHTML = `Trạng thái: <span class="badge badge-success">Thành viên: ${username} - ${user.department} (Đang hoạt động)</span>`;
     document.getElementById('authButtons').innerHTML = '<button onclick="handleLogout()" class="btn btn-danger btn-xs">Đăng Xuất</button>';
-    
+
     document.getElementById('sectionGiaoViec').classList.remove('disabled-section');
     document.getElementById('sectionXuLy').classList.remove('disabled-section');
-    
+
     closeAuthModal();
     renderAllTables();
 }
@@ -144,6 +205,7 @@ function handleAuth() {
 // 4. XỬ LÝ ĐĂNG XUẤT (Khóa hệ thống)
 function handleLogout() {
     isLoggedIn = false;
+    currentUser = null;
     document.getElementById('userStatus').innerHTML = 'Trạng thái: <span class="badge">Khách (Chỉ xem Bảng Theo Dõi)</span>';
     document.getElementById('authButtons').innerHTML = `
         <button onclick="openAuthModal('login')" class="btn btn-primary btn-xs" style="margin-right: 5px;">Đăng Nhập</button>
@@ -186,6 +248,8 @@ function taoCongViec() {
 
     // 📸 MÃ HÓA ẢNH ĐỒNG HỒ SANG BASE64 TRƯỚC KHI LƯU
     if (fileInput && fileInput.files && fileInput.files[0]) {
+        const file = fileInput.files[0];
+        if (!validateImage(file)) return;
         const reader = new FileReader();
         reader.onload = function (e) {
             newJob.AnhDongHo = e.target.result; // Chuỗi mã hóa Base64 của ảnh
@@ -213,6 +277,8 @@ function capNhatXuLy(index, key, value) {
 // 7. HÀNH ĐỘNG 3: UPLOAD VÀ MÃ HÓA ẢNH MINH CHỨNG (BẢNG XỬ LÝ)
 function capNhatAnhCongTac(index, inputElement) {
     if (inputElement.files && inputElement.files[0]) {
+        const file = inputElement.files[0];
+        if (!validateImage(file)) return;
         const reader = new FileReader();
         reader.onload = function (e) {
             dbCongViec[index].AnhCongTac = e.target.result; // Lưu ảnh dạng Base64
@@ -259,7 +325,8 @@ async function giaoViecKemAnhHangLoat() {
     const mapAnhDongHo = {}; 
     
     if (albumInput && albumInput.files && albumInput.files.length > 0) {
-        const fileImagePromises = Array.from(albumInput.files).map(fileAnh => {
+        const imageFiles = Array.from(albumInput.files).filter(f => validateImage(f));
+        const fileImagePromises = imageFiles.map(fileAnh => {
             return new Promise((resolve) => {
                 const reader = new FileReader();
                 reader.onload = function (e) {
@@ -321,8 +388,8 @@ async function giaoViecKemAnhHangLoat() {
         }
 
         if (soLuongThanhCong > 0) {
-            // QUAN TRỌNG: Ép hệ thống lưu ngay mảng mới vào bộ nhớ cứng LocalStorage của máy
-            localStorage.setItem('dbCongViec_Data', JSON.stringify(dbCongViec));
+            // Lưu dữ liệu (LocalStorage fallback hoặc OneDrive tùy theo trạng thái đăng nhập)
+            luuVaoLocalStorage();
             
             // Vẽ lại giao diện bảng
             renderAllTables();
@@ -400,7 +467,7 @@ function renderAllTables() {
                              job.SoThan.toLowerCase().includes(keyword) || 
                              job.ViecGiao.toLowerCase().includes(keyword);
                              
-        const matchBoPhan = filterBoPhan === "ALL" || job.BoPhan === filterBoPhan;
+        const matchBoPhan = filterBoPhan === "ALL" || job.BoPhan === filterBoPhan || job.BoPhan.includes(filterBoPhan);
         
         const matchTrangThai = filterTrangThai === "ALL" || 
                                (filterTrangThai === "DONE" && job.hoanThanh) || 
@@ -453,7 +520,7 @@ function renderAllTables() {
                 <i style="color:#666">${job.phanHoiKetQua ? job.phanHoiKetQua : 'Chờ bộ phận xử lý...'}</i>
             </td>
             <td>
-                <button class="btn btn-danger btn-xs" ${(!job.hoanThanh || !isLoggedIn) ? 'disabled' : ''} onclick="xoaDongCongViec(${index})">
+                <button class="btn btn-danger btn-xs" ${(!job.hoanThanh || !isLoggedIn || !currentUser || currentUser.role !== 'admin') ? 'disabled' : ''} onclick="xoaDongCongViec(${index})">
                     Xóa
                 </button>
             </td>
@@ -489,7 +556,7 @@ function xuatDuLieuExcel() {
         const viecGiaoClean = job.ViecGiao.replace(/,/g, "-");
         const ghiChuClean = job.thongTinXuLy.replace(/,/g, "-");
 
-        csvContent += `${job.stt},'${job.MaDanhBo},'${job.SoThan},${viecGiaoClean},${job.NgayGiao},${job.BoPhan},${trangThaiText},${ghiChuClean}\n`;
+        csvContent += `${job.stt},"${job.MaDanhBo}","${job.SoThan}",${viecGiaoClean},${job.NgayGiao},${job.BoPhan},${trangThaiText},${ghiChuClean}\n`;
     });
 
     // Tạo đối tượng tải file và ép cấu trúc hiển thị chữ tiếng Việt không lỗi font (UTF-8 BOM)
