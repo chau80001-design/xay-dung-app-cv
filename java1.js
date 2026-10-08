@@ -37,7 +37,7 @@ const msalConfig = {
     auth: {
         clientId: "ba146a0f-5848-4018-9054-eccf08c8b925",
         authority: "https://login.microsoftonline.com/common",
-        redirectUri: "https://chau80001-design.github.io/xay-dung-app-cv-chuan-4-them-dc-file-1---2---bo-loc--xuat-file/",  // Thay bằng URL GitHub Pages thực tế
+        redirectUri: "https://chau80001-design.github.io/xay-dung-app-cv-chuan-4-them-d-c-file-1---2---bo-loc--xuat-file/",  // Thay bằng URL GitHub Pages thực tế
     },
     cache: {
         cacheLocation: "sessionStorage",
