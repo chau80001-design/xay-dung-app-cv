@@ -71,8 +71,7 @@ onAuthStateChanged(auth, async (user) => {
         // Gắn sự kiện nút đăng xuất động
         document.getElementById('btnLogOut').addEventListener('click', handleLogout);
 
-        // Mở khóa phân hệ chức năng nhập/sửa dữ liệu
-        document.getElementById('sectionGiaoViec').classList.remove('disabled-section');
+        // Mở khóa phân hệ chức năng xử lý dữ liệu (Bảng Giao Việc chỉ mở khi nhấn nút tương ứng)
         document.getElementById('sectionXuLy').classList.remove('disabled-section');
 
         // Tải dữ liệu chính thức thời gian thực từ đám mây xuống
@@ -192,8 +191,8 @@ async function handleLogout() {
             <button onclick="openAuthModal('register')" class="btn btn-outline btn-xs">Đăng Ký</button>
         `;
 
-        document.getElementById('sectionGiaoViec').classList.add('disabled-section');
-        document.getElementById('sectionXuLy').classList.add('disabled-section');
+        if (document.getElementById('sectionGiaoViec')) document.getElementById('sectionGiaoViec').classList.add('disabled-section');
+        if (document.getElementById('sectionXuLy')) document.getElementById('sectionXuLy').classList.add('disabled-section');
         
         dbCongViec = [];
         renderAllTables();
@@ -203,30 +202,23 @@ async function handleLogout() {
 }
 
 // ==========================================
-// 7. CÁC HÀM NGHIỆP VỤ TÁC VỤ CÔNG VIỆC
+// 6.5. HÀM MỞ BẢNG GIAO VIỆC TỪ NÚT TRÊN TRANG THEO DÕI
 // ==========================================
-
-// Chuyển hướng sang form Giao việc và điền sẵn dữ liệu từ bảng Theo Dõi
-function chuyenSangGiaoViec(index) {
+function moBangGiaoViec() {
     if (!isLoggedIn) {
         openAuthModal('login');
         return;
     }
-    const job = dbCongViec[index];
-    if (!job) return;
-
-    // Mở khóa form giao việc nếu đang bị khóa
-    document.getElementById('sectionGiaoViec').classList.remove('disabled-section');
-
-    // Đổ dữ liệu vào form
-    document.getElementById('inputMaDanhBo').value = job.MaDanhBo || '';
-    document.getElementById('inputSoThan').value = job.SoThan || '';
-    document.getElementById('jobImageUrl').value = job.AnhDongHo || '';
-    document.getElementById('inputViecGiao').value = job.ViecGiao || '';
-
-    // Scroll mượt mà xuống khung giao việc
-    document.getElementById('sectionGiaoViec').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const section = document.getElementById('sectionGiaoViec');
+    if (section) {
+        section.classList.remove('disabled-section');
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 }
+
+// ==========================================
+// 7. CÁC HÀM NGHIỆP VỤ TÁC VỤ CÔNG VIỆC
+// ==========================================
 
 // Thêm 1 công việc đơn lẻ
 async function taoCongViec() {
@@ -434,7 +426,6 @@ function renderAllTables() {
             <td><span class="status-dot ${dotClass}"></span> ${textTrangThai}</td>
             <td>${job.thongTinXuLy || ''}</td>
             <td>
-                <button onclick="chuyenSangGiaoViec(${index})" class="btn btn-primary btn-xs" style="margin-bottom:3px;">Giao Vie</button>
                 ${!job.hoanThanh ? `<button onclick="xacNhanHoanThanh(${index})" class="btn btn-success btn-xs">Hoàn Thành</button>` : '<span class="badge badge-success">Đã xong</span>'}
                 <button onclick="xoaDongCongViec(${index})" class="btn btn-danger btn-xs" style="margin-left:5px;">Xóa</button>
             </td>
@@ -452,8 +443,9 @@ window.taoCongViec = taoCongViec;
 window.capNhatXuLy = capNhatXuLy;
 window.xacNhanHoanThanh = xacNhanHoanThanh;
 window.xoaDongCongViec = xoaDongCongViec;
-window.chuyenSangGiaoViec = chuyenSangGiaoViec;
 window.giaitrinhanhcongviec = giaoViecKemAnhHangLoat;
 window.giaoViecKemAnhHangLoat = giaoViecKemAnhHangLoat;
 window.thucHienSapXep = thucHienSapXep;
 window.xuatDuLieuExcel = xuatDuLieuExcel;
+window.moBangGiaoViec = moBangGiaoViec;
+
