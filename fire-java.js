@@ -206,6 +206,28 @@ async function handleLogout() {
 // 7. CÁC HÀM NGHIỆP VỤ TÁC VỤ CÔNG VIỆC
 // ==========================================
 
+// Chuyển hướng sang form Giao việc và điền sẵn dữ liệu từ bảng Theo Dõi
+function chuyenSangGiaoViec(index) {
+    if (!isLoggedIn) {
+        openAuthModal('login');
+        return;
+    }
+    const job = dbCongViec[index];
+    if (!job) return;
+
+    // Mở khóa form giao việc nếu đang bị khóa
+    document.getElementById('sectionGiaoViec').classList.remove('disabled-section');
+
+    // Đổ dữ liệu vào form
+    document.getElementById('inputMaDanhBo').value = job.MaDanhBo || '';
+    document.getElementById('inputSoThan').value = job.SoThan || '';
+    document.getElementById('jobImageUrl').value = job.AnhDongHo || '';
+    document.getElementById('inputViecGiao').value = job.ViecGiao || '';
+
+    // Scroll mượt mà xuống khung giao việc
+    document.getElementById('sectionGiaoViec').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 // Thêm 1 công việc đơn lẻ
 async function taoCongViec() {
     if (!isLoggedIn) return;
@@ -412,6 +434,7 @@ function renderAllTables() {
             <td><span class="status-dot ${dotClass}"></span> ${textTrangThai}</td>
             <td>${job.thongTinXuLy || ''}</td>
             <td>
+                <button onclick="chuyenSangGiaoViec(${index})" class="btn btn-primary btn-xs" style="margin-bottom:3px;">Giao Vie</button>
                 ${!job.hoanThanh ? `<button onclick="xacNhanHoanThanh(${index})" class="btn btn-success btn-xs">Hoàn Thành</button>` : '<span class="badge badge-success">Đã xong</span>'}
                 <button onclick="xoaDongCongViec(${index})" class="btn btn-danger btn-xs" style="margin-left:5px;">Xóa</button>
             </td>
@@ -429,6 +452,7 @@ window.taoCongViec = taoCongViec;
 window.capNhatXuLy = capNhatXuLy;
 window.xacNhanHoanThanh = xacNhanHoanThanh;
 window.xoaDongCongViec = xoaDongCongViec;
+window.chuyenSangGiaoViec = chuyenSangGiaoViec;
 window.giaitrinhanhcongviec = giaoViecKemAnhHangLoat;
 window.giaoViecKemAnhHangLoat = giaoViecKemAnhHangLoat;
 window.thucHienSapXep = thucHienSapXep;
