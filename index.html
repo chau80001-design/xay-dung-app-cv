@@ -4,11 +4,26 @@
     
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Các thư viện bổ trợ khác (ví dụ PapaParse) giữ nguyên -->
+    <!-- Script này không cần thiết, giữ nguyên hoặc bỏ -->
+    <!-- <script src="https://cloudflare.com"></script> -->
+
+
+    <!-- PapaParse CSV Parser -->
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
     
+    <!-- Firebase Modular SDK via Import Map -->
+    <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"
+      }
+    }
+    </script>
     
     <title>Hệ Thống Quản Lý Giao Việc</title>
-    <!-- Nhúng thư viện MSAL.js v2 từ jsDelivr (Microsoft CDN đã ngừng hỗ trợ v2) -->
-    <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.39.0/lib/msal-browser.min.js" crossorigin="anonymous"></script>
 
 
 
@@ -93,10 +108,7 @@
         <div class="status-bar">
 
             
-            <button id="btnOneDriveAuth" onclick="dangNhapOneDrive()" class="btn btn-primary btn-xs" style="margin-left: 10px; font-weight: bold;">
-                🔵 Kết Nối Lưu Trữ OneDrive
-            </button>
-
+  
 
 
             <span id="userStatus">
@@ -118,13 +130,13 @@
         <!-- Lọc theo từ khóa -->
         <div style="flex: 1; min-width: 180px;">
             <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">Tìm kiếm (Danh bộ, Số thân, Việc giao):</label>
-            <input type="text" id="filterKeyword" oninput="renderAllTables()" class="form-control" placeholder="Nhập từ khóa..." style="font-size:12px; height:30px; width:100%;">
+            <input type="text" id="filterKeyword" class="form-control" placeholder="Nhập từ khóa..." style="font-size:12px; height:30px; width:100%;">
         </div>
 
         <!-- Lọc theo bộ phận -->
         <div style="width: 140px;">
             <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">Bộ Phận:</label>
-            <select id="filterBoPhan" onchange="renderAllTables()" class="form-control" style="font-size:12px; height:30px; padding:2px 5px; width:100%;">
+            <select id="filterBoPhan" class="form-control" style="font-size:12px; height:30px; padding:2px 5px; width:100%;">
                 <option value="ALL">-- Tất cả --</option>
                 <option value="QLML">QLML</option>
                 <option value="KHVT">KHVT</option>
@@ -135,7 +147,7 @@
         <!-- Lọc theo trạng thái -->
         <div style="width: 140px;">
             <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">Trạng Thái:</label>
-            <select id="filterTrangThai" onchange="renderAllTables()" class="form-control" style="font-size:12px; height:30px; padding:2px 5px; width:100%;">
+            <select id="filterTrangThai" class="form-control" style="font-size:12px; height:30px; padding:2px 5px; width:100%;">
                 <option value="ALL">-- Tất cả --</option>
                 <option value="PROCESSING">Đang Xử Lý</option>
                 <option value="DONE">Đã Hoàn Thành</option>
@@ -168,14 +180,14 @@
                     <!-- CẬP NHẬT TIÊU ĐỀ <th> ĐỂ BẤM VÀO SẮP XẾP -->
                     <thead>
                         <tr style="background-color: #f1f1f1;">
-                            <th onclick="thucHienSapXep('stt')" style="cursor: pointer; user-select: none;">STT ⇅</th>
-                            <th onclick="thucHienSapXep('MaDanhBo')" style="cursor: pointer; user-select: none;">Mã Danh Bộ ⇅</th>
-                            <th onclick="thucHienSapXep('SoThan')" style="cursor: pointer; user-select: none;">Số Thân ⇅</th>
+                            <th data-sort="stt" onclick="thucHienSapXep('stt')" style="cursor: pointer; user-select: none;">STT ⇅</th>
+                            <th data-sort="MaDanhBo" onclick="thucHienSapXep('MaDanhBo')" style="cursor: pointer; user-select: none;">Mã Danh Bộ ⇅</th>
+                            <th data-sort="SoThan" onclick="thucHienSapXep('SoThan')" style="cursor: pointer; user-select: none;">Số Thân ⇅</th>
                             <th style="user-select: none;">Hình Ảnh</th>
-                            <th onclick="thucHienSapXep('ViecGiao')" style="cursor: pointer; user-select: none;">Việc Giao ⇅</th>
-                            <th onclick="thucHienSapXep('NgayGiao')" style="cursor: pointer; user-select: none;">Ngày Giao ⇅</th>
-                            <th onclick="thucHienSapXep('BoPhan')" style="cursor: pointer; user-select: none;">Bộ Phận ⇅</th>
-                            <th onclick="thucHienSapXep('hoanThanh')" style="cursor: pointer; user-select: none;">Trạng Thái ⇅</th>
+                            <th data-sort="ViecGiao" onclick="thucHienSapXep('ViecGiao')" style="cursor: pointer; user-select: none;">Việc Giao ⇅</th>
+                            <th data-sort="NgayGiao" onclick="thucHienSapXep('NgayGiao')" style="cursor: pointer; user-select: none;">Ngày Giao ⇅</th>
+                            <th data-sort="BoPhan" onclick="thucHienSapXep('BoPhan')" style="cursor: pointer; user-select: none;">Bộ Phận ⇅</th>
+                            <th data-sort="hoanThanh" onclick="thucHienSapXep('hoanThanh')" style="cursor: pointer; user-select: none;">Trạng Thái ⇅</th>
                             <th style="user-select: none;">Phản Hồi Kết Quả</th>
                             <th style="user-select: none;">Thao Tác</th>
                         </tr>
@@ -211,8 +223,8 @@
                                 <input type="text" id="inputSoThan" class="form-control" required placeholder="Nhập số thân ĐH">
                             </div>
                             <div class="form-group">
-                                <label>Hình Ảnh Đồng Hồ</label>
-                                <input type="file" id="inputAnhDongHo" class="form-control" accept="image/*" required>
+                                <label>Hình Ảnh Đồng Hồ (Link URL)</label>
+                                <input type="text" id="jobImageUrl" class="form-control" placeholder="Dán link ảnh từ internet vào đây (ví dụ: https://.../anh.jpg)">
                             </div>
                             <div class="form-group">
                                 <label>Việc Giao</label>
@@ -236,23 +248,17 @@
 
                         <!-- Khung giao việc bằng file và ảnh hàng loạt -->
                             <div class="form-group" style="display: inline-block; vertical-align: top; margin-left: 15px; border: 1px dashed #bbb; padding: 10px; border-radius: 5px; background: #f9f9f9;">
-                                <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #333;">📦 Giao Việc Hàng Loạt:</label>
+                                <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #333;">📦 Giao Việc Hàng Loạt (Chỉ nhập text CSV):</label>
                                 
                                 <!-- 1. Ô chọn file dữ liệu CSV -->
                                 <div style="margin-bottom: 5px;">
                                     <span style="font-size: 11px; color: #555; display: block;">Dữ liệu (.csv):</span>
                                     <input type="file" id="inputGiaoViecFile" accept=".csv, .txt" class="form-control" style="font-size: 12px; display: inline-block; width: 200px;">
                                 </div>
-
-                                <!-- 2. Ô chọn nhiều ảnh cùng lúc (Thêm thuộc tính multiple) -->
-                                <div style="margin-bottom: 8px;">
-                                    <span style="font-size: 11px; color: #555; display: block;">Album ảnh đồng hồ (Đặt tên ảnh = Mã Danh Bộ):</span>
-                                    <input type="file" id="inputGiaoViecAlbum" accept="image/*" multiple class="form-control" style="font-size: 12px; display: inline-block; width: 200px;">
-                                </div>
                                 
-                                <!-- 3. Nút bấm xử lý đồng bộ -->
+                                <!-- 2. Nút bấm xử lý -->
                                 <button type="button" onclick="giaoViecKemAnhHangLoat()" class="btn btn-info btn-xs" style="padding: 6px 12px; font-weight: bold; width: 100%;">
-                                    📤 Nạp File & Khớp Ảnh Tự Động
+                                    📤 Nạp File CSV
                                 </button>
                             </div>
 
@@ -333,7 +339,7 @@
     </div>
 
     <!-- KHU VỰC LIÊN KẾT FILE JAVASCRIPT -->
-     <script src="java1.js"></script>
+     <script type="module" src="fire-java.js"></script>
 
 </body>
 </html>
