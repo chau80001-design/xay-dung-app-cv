@@ -191,7 +191,6 @@ async function handleLogout() {
             <button onclick="openAuthModal('register')" class="btn btn-outline btn-xs">Đăng Ký</button>
         `;
 
-        if (document.getElementById('sectionGiaoViec')) document.getElementById('sectionGiaoViec').classList.add('disabled-section');
         if (document.getElementById('sectionXuLy')) document.getElementById('sectionXuLy').classList.add('disabled-section');
         
         dbCongViec = [];
@@ -209,11 +208,8 @@ function moBangGiaoViec() {
         openAuthModal('login');
         return;
     }
-    const section = document.getElementById('sectionGiaoViec');
-    if (section) {
-        section.classList.remove('disabled-section');
-        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    // Điều hướng sang trang giao việc riêng biệt
+    window.location.href = 'giaoviec.html';
 }
 
 // ==========================================
