@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Các thư viện bổ trợ khác (ví dụ PapaParse) giữ nguyên -->
+    <!-- Script này không cần thiết, giữ nguyên hoặc bỏ -->
+    <!-- <script src="https://cloudflare.com"></script> -->
+
+
+    <!-- PapaParse CSV Parser -->
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    
+    <!-- Firebase Modular SDK via Import Map -->
+    <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"
+      }
+    }
+    </script>
+    
+    <title>Hệ Thống Quản Lý Giao Việc</title>
+
+
+
+    <style>
+        /* --- CSS THUẦN CHẠY OFFLINE KHÔNG CẦN INTERNET --- */
+        * { box-sizing: border-box; font-family: Arial, sans-serif; margin: 0; padding: 0; }
+        body { background-color: #f4f6f9; color: #333; padding-bottom: 60px; }
+        
+        /* Thanh Menu */
+        .navbar { background-color: #212529; color: white; padding: 15px 20px; font-size: 18px; font-weight: bold; }
+        .container { max-width: 1200px; margin: 20px auto; padding: 0 15px; }
+        
+        /* Khung Trạng Thái Đăng Nhập */
+        .status-bar { background: white; padding: 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .badge { background-color: #6c757d; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .badge-success { background-color: #198754; }
+        
+        /* Cấu Trúc Khung Bảng (Card) */
+        .card { background: white; border-radius: 6px; margin-bottom: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #e3e6f0; overflow: hidden; }
+        .card-header { padding: 12px 20px; font-weight: bold; color: white; font-size: 16px; }
+        .bg-primary { background-color: #0d6efd; }
+        .bg-info { background-color: #0dcaf0; color: #333 !important; }
+        .bg-dark { background-color: #343a40; }
+        .card-body { padding: 20px; }
+
+        /* Khóa bảng kiểu mới tinh tế */
+        .disabled-section .card-body-content { display: none !important; }
+        .auth-lock-msg { display: none; text-align: center; padding: 30px 10px; color: #dc3545; font-weight: bold; font-size: 15px; }
+        .disabled-section .auth-lock-msg { display: block !important; }
+        .auth-lock-msg a { color: #0d6efd; text-decoration: none; }
+        .auth-lock-msg a:hover { text-decoration: underline; }
+
+        /* Thiết kế Form Giao Việc */
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 15px; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group label { font-size: 13px; font-weight: bold; margin-bottom: 5px; color: #495057; }
+        .form-control, .form-select { padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px; outline: none; width: 100%; }
+        .form-control:focus, .form-select:focus { border-color: #86b7fe; }
+
+        /* Các loại nút bấm */
+        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; display: inline-block; text-decoration: none; text-align: center; }
+        .btn-primary { background-color: #0d6efd; color: white; }
+        .btn-primary:hover { background-color: #0b5ed7; }
+        .btn-success { background-color: #198754; color: white; }
+        .btn-danger { background-color: #dc3545; color: white; }
+        .btn-danger:disabled, .btn-success:disabled { background-color: #cccccc; cursor: not-allowed; }
+        .btn-info { background-color: #0dcaf0; color: #333; }
+        .btn-info:hover { background-color: #0bb3d1; }
+        .btn-outline { border: 1px solid #6c757d; background: transparent; color: #6c757d; }
+        .btn-block { width: 100%; display: block; }
+        .btn-xs { padding: 4px 8px; font-size: 12px; }
+
+        /* Cấu trúc Bảng dữ liệu mượt mà */
+        .table-responsive { overflow-x: auto; width: 100%; }
+        table { width: 100%; border-collapse: collapse; margin-top: 5px; background: white; font-size: 14px; text-align: left; }
+        th, td { padding: 12px 10px; border: 1px solid #dee2e6; }
+        th { background-color: #f8f9fa; font-weight: bold; color: #495057; }
+        tr:nth-child(even) { background-color: #f8f9fa; }
+        
+        /* Trạng thái chấm tròn */
+        .status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; }
+        .status-processing { background-color: #ffc107; }
+        .status-done { background-color: #198754; }
+
+        /* Cửa sổ đăng nhập (Modal Popup) */
+        #overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1040; }
+        #authModal { display: none; position: fixed; top: 20%; left: 50%; transform: translate(-50%, 0); width: 90%; max-width: 400px; z-index: 1050; background: white; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); border: 1px solid #ccc; }
+        .modal-header { padding: 15px; border-bottom: 1px solid #dee2e6; display: flex; justify-content: space-between; align-items: center; background: #212529; color: white; border-top-left-radius: 5px; border-top-right-radius: 5px; }
+        .modal-body { padding: 20px; }
+        .close-btn { background: none; border: none; color: white; font-size: 20px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <!-- THANH MENU CHÍNH -->
+    <div class="navbar">
+        🏢 Hệ Thống Quản Lý Giao Việc
+    </div>
+
+    <div class="container">
+        <!-- KHU VỰC THÔNG BÁO QUYỀN TRUY CẬP -->
+        <div class="status-bar">
+
+            
+  
+
+
+            <span id="userStatus">
+                Trạng thái: <span class="badge" id="statusBadge">Khách (Chỉ xem Bảng Theo Dõi)</span>
+            </span>
+            <div id="authButtons">
+                <button onclick="openAuthModal('login')" class="btn btn-primary btn-xs" style="margin-right: 5px;">Đăng Nhập</button>
+                <button onclick="openAuthModal('register')" class="btn btn-outline btn-xs">Đăng Ký</button>
+            </div>
+        </div>
+
+
+
+
+
+        <!-- THANH BỘ LỌC VÀ NÚT XUẤT DỮ LIỆU -->
+    <div class="filter-bar" style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #dee2e6; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;">
+        
+        <!-- Lọc theo từ khóa -->
+        <div style="flex: 1; min-width: 180px;">
+            <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">Tìm kiếm (Danh bộ, Số thân, Việc giao):</label>
+            <input type="text" id="filterKeyword" class="form-control" placeholder="Nhập từ khóa..." style="font-size:12px; height:30px; width:100%;">
+        </div>
+
+        <!-- Lọc theo bộ phận -->
+        <div style="width: 140px;">
+            <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">Bộ Phận:</label>
+            <select id="filterBoPhan" class="form-control" style="font-size:12px; height:30px; padding:2px 5px; width:100%;">
+                <option value="ALL">-- Tất cả --</option>
+                <option value="QLML">QLML</option>
+                <option value="KHVT">KHVT</option>
+                <option value="BKD">BKD</option>
+            </select>
+        </div>
+
+        <!-- Lọc theo trạng thái -->
+        <div style="width: 140px;">
+            <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">Trạng Thái:</label>
+            <select id="filterTrangThai" class="form-control" style="font-size:12px; height:30px; padding:2px 5px; width:100%;">
+                <option value="ALL">-- Tất cả --</option>
+                <option value="PROCESSING">Đang Xử Lý</option>
+                <option value="DONE">Đã Hoàn Thành</option>
+            </select>
+        </div>
+
+        <!-- Nút Xuất file Excel (CSV) -->
+        <div>
+            <button type="button" onclick="xuatDuLieuExcel()" class="btn btn-success btn-xs" style="height:30px; padding: 0 15px; font-weight:bold; background-color:#198754; color:#fff; border:none; border-radius:4px;">
+                📊 Xuất Bản Excel
+            </button>
+        </div>
+    </div>
+
+
+
+
+
+
+        <!-- BẢNG 3: BẢNG THEO DÕI CÔNG KHAI (Luôn mở) -->
+        <div class="card" id="sectionTheoDoi">
+            <div class="card-header bg-dark">3. Bảng Theo Dõi Công Việc (Công Khai)</div>
+            <div class="card-body table-responsive">
+                <table>
+
+
+
+
+
+                    <!-- CẬP NHẬT TIÊU ĐỀ <th> ĐỂ BẤM VÀO SẮP XẾP -->
+                    <thead>
+                        <tr style="background-color: #f1f1f1;">
+                            <th data-sort="stt" onclick="thucHienSapXep('stt')" style="cursor: pointer; user-select: none;">STT ⇅</th>
+                            <th data-sort="MaDanhBo" onclick="thucHienSapXep('MaDanhBo')" style="cursor: pointer; user-select: none;">Mã Danh Bộ ⇅</th>
+                            <th data-sort="SoThan" onclick="thucHienSapXep('SoThan')" style="cursor: pointer; user-select: none;">Số Thân ⇅</th>
+                            <th style="user-select: none;">Hình Ảnh</th>
+                            <th data-sort="ViecGiao" onclick="thucHienSapXep('ViecGiao')" style="cursor: pointer; user-select: none;">Việc Giao ⇅</th>
+                            <th data-sort="NgayGiao" onclick="thucHienSapXep('NgayGiao')" style="cursor: pointer; user-select: none;">Ngày Giao ⇅</th>
+                            <th data-sort="BoPhan" onclick="thucHienSapXep('BoPhan')" style="cursor: pointer; user-select: none;">Bộ Phận ⇅</th>
+                            <th data-sort="hoanThanh" onclick="thucHienSapXep('hoanThanh')" style="cursor: pointer; user-select: none;">Trạng Thái ⇅</th>
+                            <th style="user-select: none;">Phản Hồi Kết Quả</th>
+                            <th style="user-select: none;">Thao Tác</th>
+                        </tr>
+                    </thead>
+
+
+
+
+                    <tbody id="tbodyTheoDoi"></tbody>
+                </table>
+            </div>
+        </div>
+
+
+
+
+        <!-- BẢNG 1: BẢNG GIAO VIỆC (Mặc định khóa) -->
+        <div class="card disabled-section" id="sectionGiaoViec">
+            <div class="card-header bg-primary">1. Bảng Giao Việc Mới</div>
+            <div class="card-body">
+                <div class="auth-lock-msg">
+                    🔒 Vui lòng <a href="#" onclick="openAuthModal('login')">Đăng nhập</a> để sử dụng chức năng Giao việc.
+                </div>
+                <div class="card-body-content">
+                    <form id="formGiaoViec" onsubmit="event.preventDefault(); taoCongViec();">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Mã Danh Bộ (11 số)</label>
+                                <input type="text" id="inputMaDanhBo" class="form-control" maxlength="11" required placeholder="Nhập đúng 11 chữ số">
+                            </div>
+                            <div class="form-group">
+                                <label>Số Thân</label>
+                                <input type="text" id="inputSoThan" class="form-control" required placeholder="Nhập số thân ĐH">
+                            </div>
+                            <div class="form-group">
+                                <label>Hình Ảnh Đồng Hồ (Link URL)</label>
+                                <input type="text" id="jobImageUrl" class="form-control" placeholder="Dán link ảnh từ internet vào đây (ví dụ: https://.../anh.jpg)">
+                            </div>
+                            <div class="form-group">
+                                <label>Việc Giao</label>
+                                <input type="text" id="inputViecGiao" class="form-control" required placeholder="Nội dung công việc">
+                            </div>
+                            <div class="form-group">
+                                <label>Bộ Phận Nhận</label>
+                                <select id="inputBoPhan" class="form-select">
+                                    <option value="Đội QLGT">Đội QLGT</option>
+                                    <option value="Đội QLML kv1">Đội QLML kv1</option>
+                                    <option value="Đội QLML kv2">Đội QLML kv2</option>
+                                    <option value="Ban KinhDoanh">Ban KinhDoanh</option>
+                                    <option value="Ban Kế hoạch vật tư">Ban Kế hoạch vật tư</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">➕ Giao Việc</button>
+
+                        
+
+
+                        <!-- Khung giao việc bằng file và ảnh hàng loạt -->
+                            <div class="form-group" style="display: inline-block; vertical-align: top; margin-left: 15px; border: 1px dashed #bbb; padding: 10px; border-radius: 5px; background: #f9f9f9;">
+                                <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #333;">📦 Giao Việc Hàng Loạt (Chỉ nhập text CSV):</label>
+                                
+                                <!-- 1. Ô chọn file dữ liệu CSV -->
+                                <div style="margin-bottom: 5px;">
+                                    <span style="font-size: 11px; color: #555; display: block;">Dữ liệu (.csv):</span>
+                                    <input type="file" id="inputGiaoViecFile" accept=".csv, .txt" class="form-control" style="font-size: 12px; display: inline-block; width: 200px;">
+                                </div>
+                                
+                                <!-- 2. Nút bấm xử lý -->
+                                <button type="button" onclick="giaoViecKemAnhHangLoat()" class="btn btn-info btn-xs" style="padding: 6px 12px; font-weight: bold; width: 100%;">
+                                    📤 Nạp File CSV
+                                </button>
+                            </div>
+
+
+
+
+
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- BẢNG 2: BẢNG XỬ LÝ CÔNG VIỆC (Mặc định khóa) -->
+        <div class="card disabled-section" id="sectionXuLy">
+            <div class="card-header bg-info">2. Bảng Xử Lý Công Việc (Dành cho bộ phận thực hiện)</div>
+            <div class="card-body">
+                <div class="auth-lock-msg">
+                    🔒 Vui lòng <a href="#" onclick="openAuthModal('login')">Đăng nhập</a> để thao tác xử lý công việc.
+                </div>
+                <div class="card-body-content table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Mã Danh Bộ</th>
+                                <th>Số Thân</th>
+                                <th>Ảnh Đồng Hồ</th>
+                                <th>Việc Giao</th>
+                                <th>Bộ Phận</th>
+                                <th style="width: 25%;">Thông Tin Đã Xử Lý</th>
+                                <th style="width: 20%;">Hình Ảnh Công Tác</th>
+                                <th>Hành Động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyXuLy"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- HỘP THOẠI ĐĂNG NHẬP / ĐĂNG KÝ (MODAL POPUP) -->
+    <div id="overlay" onclick="closeAuthModal()"></div>
+    <div id="authModal">
+        <div class="modal-header">
+            <span id="modalTitle">Đăng Nhập</span>
+            <button class="close-btn" onclick="closeAuthModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <!-- Form Đăng Nhập -->
+            <div id="login-form">
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label>Tài khoản</label>
+                    <input type="text" class="form-control" placeholder="Nhập tài khoản">
+                </div>
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label>Mật khẩu</label>
+                    <input type="password" class="form-control" placeholder="Nhập mật khẩu">
+                </div>
+                <button type="button" onclick="handleAuth()" class="btn btn-success btn-block">Đăng Nhập Hệ Thống</button>
+                <p style="text-align: center; font-size: 13px; margin-top: 15px;">Chưa có tài khoản? <a href="#" onclick="switchForm('register')">Đăng ký tại đây</a></p>
+            </div>
+            
+            <!-- Form Đăng Ký -->
+            <div id="register-form" style="display:none;">
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label>Tạo Tài khoản mới</label>
+                    <input type="text" class="form-control" placeholder="Nhập tài khoản mới">
+                </div>
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label>Tạo Mật khẩu</label>
+                    <input type="password" class="form-control" placeholder="Nhập mật khẩu mới">
+                </div>
+                <button type="button" onclick="handleAuth()" class="btn btn-primary btn-block">Đăng Ký Thành Viên</button>
+                <p style="text-align: center; font-size: 13px; margin-top: 15px;">Đã có tài khoản? <a href="#" onclick="switchForm('login')">Quay lại Đăng nhập</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- KHU VỰC LIÊN KẾT FILE JAVASCRIPT -->
+     <script type="module" src="fire-java.js"></script>
+
+</body>
+</html>
