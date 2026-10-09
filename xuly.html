@@ -4,11 +4,6 @@
     
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Các thư viện bổ trợ khác (ví dụ PapaParse) giữ nguyên -->
-    <!-- Script này không cần thiết, giữ nguyên hoặc bỏ -->
-    <!-- <script src="https://cloudflare.com"></script> -->
-
-
     <!-- PapaParse CSV Parser -->
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
     
@@ -25,15 +20,15 @@
     
     <title>Hệ Thống Quản Lý Giao Việc</title>
 
-
-
     <style>
         /* --- CSS THUẦN CHẠY OFFLINE KHÔNG CẦN INTERNET --- */
         * { box-sizing: border-box; font-family: Arial, sans-serif; margin: 0; padding: 0; }
         body { background-color: #f4f6f9; color: #333; padding-bottom: 60px; }
         
         /* Thanh Menu */
-        .navbar { background-color: #212529; color: white; padding: 15px 20px; font-size: 18px; font-weight: bold; }
+        .navbar { background-color: #212529; color: white; padding: 15px 20px; font-size: 18px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+        .navbar .back-link { color: #0d6efd; text-decoration: none; font-size: 14px; font-weight: normal; }
+        .navbar .back-link:hover { text-decoration: underline; }
         .container { max-width: 1200px; margin: 20px auto; padding: 0 15px; }
         
         /* Khung Trạng Thái Đăng Nhập */
@@ -94,23 +89,22 @@
         .modal-header { padding: 15px; border-bottom: 1px solid #dee2e6; display: flex; justify-content: space-between; align-items: center; background: #212529; color: white; border-top-left-radius: 5px; border-top-right-radius: 5px; }
         .modal-body { padding: 20px; }
         .close-btn { background: none; border: none; color: white; font-size: 20px; cursor: pointer; }
+
+        /* Filter bar */
+        .filter-bar { background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #dee2e6; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
     </style>
 </head>
 <body>
 
     <!-- THANH MENU CHÍNH -->
     <div class="navbar">
-        🏢 Hệ Thống Quản Lý Giao Việc
+        <span>🏢 Hệ Thống Quản Lý Giao Việc</span>
+        <a href="index.html" class="back-link">← Quay lại Trang Theo Dõi</a>
     </div>
 
     <div class="container">
         <!-- KHU VỰC THÔNG BÁO QUYỀN TRUY CẬP -->
         <div class="status-bar">
-
-            
-  
-
-
             <span id="userStatus">
                 Trạng thái: <span class="badge" id="statusBadge">Khách (Chỉ xem Bảng Theo Dõi)</span>
             </span>
@@ -120,100 +114,86 @@
             </div>
         </div>
 
+        <!-- BẢNG 1: BẢNG GIAO VIỆC (Đã ẩn - chỉ dùng ở trang giao việc) -->
+        <div class="card disabled-section" id="sectionGiaoViec">
+            <div class="card-header bg-primary">1. Bảng Giao Việc Mới</div>
+            <div class="card-body">
+                <div class="auth-lock-msg">
+                    🔒 Bảng này đã được ẩn ở trang Xử lý.
+                </div>
+                <div class="card-body-content">
+                    <form id="formGiaoViec" onsubmit="event.preventDefault(); taoCongViec();">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Mã Danh Bộ (11 số)</label>
+                                <input type="text" id="inputMaDanhBo" class="form-control" maxlength="11" required placeholder="Nhập đúng 11 chữ số">
+                            </div>
+                            <div class="form-group">
+                                <label>Số Thân</label>
+                                <input type="text" id="inputSoThan" class="form-control" required placeholder="Nhập số thân ĐH">
+                            </div>
+                            <div class="form-group">
+                                <label>Hình Ảnh Đồng Hồ (Link URL)</label>
+                                <input type="text" id="jobImageUrl" class="form-control" placeholder="Dán link ảnh từ internet vào đây (ví dụ: https://.../anh.jpg)">
+                            </div>
+                            <div class="form-group">
+                                <label>Việc Giao</label>
+                                <input type="text" id="inputViecGiao" class="form-control" required placeholder="Nội dung công việc">
+                            </div>
+                            <div class="form-group">
+                                <label>Bộ Phận Nhận</label>
+                                <select id="inputBoPhan" class="form-select">
+                                    <option value="Đội QLGT">Đội QLGT</option>
+                                    <option value="Đội QLML kv1">Đội QLML kv1</option>
+                                    <option value="Đội QLML kv2">Đội QLML kv2</option>
+                                    <option value="Ban KinhDoanh">Ban KinhDoanh</option>
+                                    <option value="Ban Kế hoạch vật tư">Ban Kế hoạch vật tư</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">➕ Giao Việc</button>
 
-
-
-
-        <!-- THANH BỘ LỌC VÀ NÚT XUẤT DỮ LIỆU -->
-    <div class="filter-bar" style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #dee2e6; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;">
-        
-        <!-- Lọc theo từ khóa -->
-        <div style="flex: 1; min-width: 180px;">
-            <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">Tìm kiếm (Danh bộ, Số thân, Việc giao):</label>
-            <input type="text" id="filterKeyword" class="form-control" placeholder="Nhập từ khóa..." style="font-size:12px; height:30px; width:100%;">
+                        <!-- Khung giao việc bằng file và ảnh hàng loạt -->
+                            <div class="form-group" style="display: inline-block; vertical-align: top; margin-left: 15px; border: 1px dashed #bbb; padding: 10px; border-radius: 5px; background: #f9f9f9;">
+                                <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #333;">📦 Giao Việc Hàng Loạt (Chỉ nhập text CSV):</label>
+                                <div style="margin-bottom: 5px;">
+                                    <span style="font-size: 11px; color: #555; display: block;">Dữ liệu (.csv):</span>
+                                    <input type="file" id="inputGiaoViecFile" accept=".csv, .txt" class="form-control" style="font-size: 12px; display: inline-block; width: 200px;">
+                                </div>
+                                <button type="button" onclick="giaoViecKemAnhHangLoat()" class="btn btn-info btn-xs" style="padding: 6px 12px; font-weight: bold; width: 100%;">
+                                    📤 Nạp File CSV
+                                </button>
+                            </div>
+                    </form>
+                </div>
+            </div>
         </div>
 
-        <!-- Lọc theo bộ phận -->
-        <div style="width: 140px;">
-            <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">Bộ Phận:</label>
-            <select id="filterBoPhan" class="form-control" style="font-size:12px; height:30px; padding:2px 5px; width:100%;">
-                <option value="ALL">-- Tất cả --</option>
-                <option value="QLML">QLML</option>
-                <option value="KHVT">KHVT</option>
-                <option value="BKD">BKD</option>
-            </select>
-        </div>
-
-        <!-- Lọc theo trạng thái -->
-        <div style="width: 140px;">
-            <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">Trạng Thái:</label>
-            <select id="filterTrangThai" class="form-control" style="font-size:12px; height:30px; padding:2px 5px; width:100%;">
-                <option value="ALL">-- Tất cả --</option>
-                <option value="PROCESSING">Đang Xử Lý</option>
-                <option value="DONE">Đã Hoàn Thành</option>
-            </select>
-        </div>
-
-        <!-- Nút Xuất file Excel (CSV) -->
-        <div>
-            <button type="button" onclick="xuatDuLieuExcel()" class="btn btn-success btn-xs" style="height:30px; padding: 0 15px; font-weight:bold; background-color:#198754; color:#fff; border:none; border-radius:4px;">
-                📊 Xuất Bản Excel
-            </button>
-        </div>
-
-        <!-- Nút mở Bảng Giao Việc -->
-        <div>
-            <button type="button" onclick="moBangGiaoViec()" class="btn btn-primary btn-xs" style="height:30px; padding: 0 15px; font-weight:bold; background-color:#0d6efd; color:#fff; border:none; border-radius:4px;">
-                ➕ Mở Bảng Giao Việc
-            </button>
-        </div>
-
-        <!-- Nút mở Bảng Xử Lý -->
-        <div>
-            <button type="button" onclick="moBangXuLy()" class="btn btn-info btn-xs" style="height:30px; padding: 0 15px; font-weight:bold; background-color:#0dcaf0; color:#333; border:none; border-radius:4px;">
-                🔧 Mở Bảng Xử Lý
-            </button>
+        <!-- BẢNG 2: BẢNG XỬ LÝ CÔNG VIỆC (Mở công khai) -->
+        <div class="card" id="sectionXuLy">
+            <div class="card-header bg-info">2. Bảng Xử Lý Công Việc (Dành cho bộ phận thực hiện)</div>
+            <div class="card-body">
+                <div class="card-body-content table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Mã Danh Bộ</th>
+                                <th>Số Thân</th>
+                                <th>Ảnh Đồng Hồ</th>
+                                <th>Việc Giao</th>
+                                <th>Bộ Phận</th>
+                                <th style="width: 25%;">Thông Tin Đã Xử Lý</th>
+                                <th style="width: 20%;">Hình Ảnh Công Tác</th>
+                                <th>Hành Động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyXuLy"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
-
-
-
-
-
-        <!-- BẢNG 3: BẢNG THEO DÕI CÔNG KHAI (Luôn mở) -->
-        <div class="card" id="sectionTheoDoi">
-            <div class="card-header bg-dark">3. Bảng Theo Dõi Công Việc (Công Khai)</div>
-            <div class="card-body table-responsive">
-                <table>
-
-
-
-
-
-                    <!-- CẬP NHẬT TIÊU ĐỀ <th> ĐỂ BẤM VÀO SẮP XẾP -->
-                    <thead>
-                        <tr style="background-color: #f1f1f1;">
-                            <th data-sort="stt" onclick="thucHienSapXep('stt')" style="cursor: pointer; user-select: none;">STT ⇅</th>
-                            <th data-sort="MaDanhBo" onclick="thucHienSapXep('MaDanhBo')" style="cursor: pointer; user-select: none;">Mã Danh Bộ ⇅</th>
-                            <th data-sort="SoThan" onclick="thucHienSapXep('SoThan')" style="cursor: pointer; user-select: none;">Số Thân ⇅</th>
-                            <th style="user-select: none;">Hình Ảnh</th>
-                            <th data-sort="ViecGiao" onclick="thucHienSapXep('ViecGiao')" style="cursor: pointer; user-select: none;">Việc Giao ⇅</th>
-                            <th data-sort="NgayGiao" onclick="thucHienSapXep('NgayGiao')" style="cursor: pointer; user-select: none;">Ngày Giao ⇅</th>
-                            <th data-sort="BoPhan" onclick="thucHienSapXep('BoPhan')" style="cursor: pointer; user-select: none;">Bộ Phận ⇅</th>
-                            <th data-sort="hoanThanh" onclick="thucHienSapXep('hoanThanh')" style="cursor: pointer; user-select: none;">Trạng Thái ⇅</th>
-                            <th style="user-select: none;">Phản Hồi Kết Quả</th>
-                            <th style="user-select: none;">Thao Tác</th>
-                        </tr>
-                    </thead>
-
-
-
-
-                    <tbody id="tbodyTheoDoi"></tbody>
-                </table>
-</div>
-    </div>
 
     <!-- HỘP THOẠI ĐĂNG NHẬP / ĐĂNG KÝ (MODAL POPUP) -->
     <div id="overlay" onclick="closeAuthModal()"></div>

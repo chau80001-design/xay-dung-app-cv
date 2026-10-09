@@ -213,6 +213,18 @@ function moBangGiaoViec() {
 }
 
 // ==========================================
+// 6.6. HÀM MỞ BẢNG XỬ LÝ TỪ NÚT TRÊN TRANG THEO DÕI
+// ==========================================
+function moBangXuLy() {
+    if (!isLoggedIn) {
+        openAuthModal('login');
+        return;
+    }
+    // Điều hướng sang trang xử lý công việc riêng biệt
+    window.location.href = 'xuly.html';
+}
+
+// ==========================================
 // 7. CÁC HÀM NGHIỆP VỤ TÁC VỤ CÔNG VIỆC
 // ==========================================
 
@@ -444,4 +456,5 @@ window.giaoViecKemAnhHangLoat = giaoViecKemAnhHangLoat;
 window.thucHienSapXep = thucHienSapXep;
 window.xuatDuLieuExcel = xuatDuLieuExcel;
 window.moBangGiaoViec = moBangGiaoViec;
+window.moBangXuLy = moBangXuLy;
 
