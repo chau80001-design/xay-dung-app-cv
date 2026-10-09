@@ -385,9 +385,11 @@ function renderAllTables() {
             <td>${job.AnhDongHo ? `<img src="${job.AnhDongHo}" width="50" height="50" style="object-fit:cover; border-radius:4px;">` : 'N/A'}</td>
             <td>${job.ViecGiao}</td>
             <td>${job.BoPhan}</td>
-            <td>
+            <td style="width: 25%;">
                 <input type="text" value="${job.thongTinXuLy || ''}" onchange="capNhatXuLy(${index}, 'thongTinXuLy', this.value)" placeholder="Ghi chú xử lý (có thể dán link ảnh)..." style="width:100%;">
-                ${job.AnhCongTac ? `<img src="${job.AnhCongTac}" width="50" height="50" style="object-fit:cover; display:block; margin-bottom:5px; border-radius:4px;">` : ''}
+            </td>
+            <td style="width: 20%;">
+                ${job.AnhCongTac ? `<img src="${job.AnhCongTac}" width="50" height="50" style="object-fit:cover; display:block; margin-bottom:5px; border-radius:4px;">` : 'N/A'}
             </td>
             <td>
                 ${!job.hoanThanh ? `<button onclick="xacNhanHoanThanh(${index})" class="btn btn-success btn-xs">Hoàn Thành</button>` : '<span class="badge badge-success">Đã xong</span>'}
