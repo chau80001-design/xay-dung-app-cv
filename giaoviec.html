@@ -114,13 +114,10 @@
             </div>
         </div>
 
-        <!-- BẢNG 1: BẢNG GIAO VIỆC (Hiện lên sau khi đăng nhập) -->
-        <div class="card disabled-section" id="sectionGiaoViec">
+        <!-- BẢNG 1: BẢNG GIAO VIỆC (Luôn hiện form nhập liệu) -->
+        <div class="card" id="sectionGiaoViec">
             <div class="card-header bg-primary">1. Bảng Giao Việc Mới</div>
             <div class="card-body">
-                <div class="auth-lock-msg">
-                    🔒 Vui lòng <a href="#" onclick="openAuthModal('login')">Đăng nhập</a> để sử dụng chức năng Giao việc.
-                </div>
                 <div class="card-body-content">
                     <form id="formGiaoViec" onsubmit="event.preventDefault(); taoCongViec();">
                         <div class="form-grid">
@@ -169,10 +166,14 @@
             </div>
         </div>
 
-        <!-- BẢNG 3: BẢNG THEO DÕI CÔNG KHAI (Luôn mở) -->
-        <div class="card" id="sectionTheoDoi">
+        <!-- BẢNG 3: BẢNG THEO DÕI CÔNG KHAI (Đã ẩn - chỉ dùng ở trang index.html) -->
+        <div class="card disabled-section" id="sectionTheoDoi">
             <div class="card-header bg-dark">3. Bảng Theo Dõi Công Việc (Công Khai)</div>
-            <div class="card-body table-responsive">
+            <div class="card-body">
+                <div class="auth-lock-msg">
+                    🔒 Bảng này đã được ẩn ở trang Giao việc.
+                </div>
+                <div class="card-body-content table-responsive">
                 <table>
                     <thead>
                         <tr style="background-color: #f1f1f1;">
