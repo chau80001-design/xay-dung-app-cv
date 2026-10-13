@@ -563,26 +563,24 @@ function xuatDuLieuExcel() {
 // ==========================================
 
 // Hàm tính tuần từ ngày thực hiện và trả về class màu
-// Tuần 1: Vàng, Tuần 2: Xanh dương, Tuần 3: Cam, Tuần 4: Đỏ, Sau đó: Đen
+// Tính màu theo số ngày từ ngày giao việc đến ngày hiện tại
+// 0-7 ngày: vàng, 8-14 ngày: xanh dương, 15-21 ngày: cam, 22-28 ngày: đỏ bầm, > 28 ngày: đen đậm
 function getWeekColorClass(dateStr) {
     if (!dateStr) return 'week-black';
-    const date = new Date(dateStr);
+    const date = new Date(dateStr + 'T00:00:00');
     if (isNaN(date.getTime())) return 'week-black';
     
-    // Lấy ngày đầu tiên của tháng
-    const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-    // Tính số ngày từ đầu tháng
-    const diffDays = Math.floor((date - firstDayOfMonth) / (1000 * 60 * 60 * 24));
-    // Tuần (0-indexed): 0-6 = tuần 1, 7-13 = tuần 2, 14-20 = tuần 3, 21-27 = tuần 4, 28+ = tuần 5+
-    const weekIndex = Math.floor(diffDays / 7);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    date.setHours(0, 0, 0, 0);
     
-    switch (weekIndex) {
-        case 0: return 'week-yellow';   // Tuần 1: Vàng
-        case 1: return 'week-blue';     // Tuần 2: Xanh dương
-        case 2: return 'week-orange';   // Tuần 3: Cam
-        case 3: return 'week-red';      // Tuần 4: Đỏ
-        default: return 'week-black';   // Tuần 5+: Đen
-    }
+    const diffDays = Math.floor((today - date) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays <= 7) return 'week-yellow';      // Trong 7 ngày
+    if (diffDays <= 14) return 'week-blue';       // Từ 8 đến 14 ngày
+    if (diffDays <= 21) return 'week-orange';     // Từ 15 đến 21 ngày
+    if (diffDays <= 28) return 'week-red';        // Từ 22 đến 28 ngày
+    return 'week-black';                           // Trên 28 ngày
 }
 
 function renderAllTables() {
