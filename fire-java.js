@@ -15,6 +15,12 @@ import {
     getDoc, 
     setDoc 
 } from "firebase/firestore";
+import { 
+    getStorage, 
+    ref, 
+    uploadBytes, 
+    getDownloadURL 
+} from "firebase/storage";
 
 // ==========================================
 // 2. CẤU HÌNH & KHỞI TẠO ĐƠN ENTIY FIREBASE (SINGLETON)
@@ -33,6 +39,7 @@ const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const storage = getStorage(app);
 
 // ==========================================
 // 3. ĐỊNH NGHĨA BIẾN TOÀN CỤC HỆ THỐNG
@@ -72,7 +79,8 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById('btnLogOut').addEventListener('click', handleLogout);
 
         // Mở khóa phân hệ chức năng xử lý dữ liệu (Bảng Giao Việc chỉ mở khi nhấn nút tương ứng)
-        document.getElementById('sectionXuLy').classList.remove('disabled-section');
+        const secXuLy = document.getElementById('sectionXuLy');
+        if (secXuLy) secXuLy.classList.remove('disabled-section');
 
         // Tải dữ liệu chính thức thời gian thực từ đám mây xuống
         await taiDuLieuTuFirebase();
@@ -105,26 +113,99 @@ async function luuVaoFirebase() {
     }
 }
 
-// Hàm tải dữ liệu từ Cloud về máy khi mở app
-async function taiDuLieuTuFirebase() {
-    if (!auth.currentUser) return;
+// Hàm upload ảnh lên Firebase Storage
+async function uploadAnhDongHo(file) {
+    if (!file) return "";
     try {
-        const docRef = doc(db, FIREBASE_COLLECTION, FIREBASE_DOC_ID);
-        const docSnap = await getDoc(docRef);
-
-        if (!docSnap.exists()) {
-            console.log("Chưa tồn tại dữ liệu trên Cloud, khởi tạo mảng rỗng...");
-            dbCongViec = [];
-            await luuVaoFirebase();
+        // Tạo tên file duy nhất tránh trùng
+        const fileName = `${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
+        const storageRef = ref(storage, `anh-dong-ho/${fileName}`);
+        
+        // Upload file với metadata để tối ưu
+        const metadata = {
+            contentType: 'image/jpeg',
+            cacheControl: 'public, max-age=31536000'
+        };
+        
+        // Upload file
+        // Resize ảnh trước khi upload để tăng tốc
+        let fileToUpload = file;
+        const lowerName = file.name.toLowerCase();
+        const isHeicJfif = lowerName.endsWith('.jfif') || lowerName.endsWith('.heic') || lowerName.endsWith('.heif');
+        if (file.type.startsWith('image/') || lowerName.endsWith('.jfif') || lowerName.endsWith('.heic') || lowerName.endsWith('.heif') || lowerName.endsWith('.jpeg') || lowerName.endsWith('.jpg') || lowerName.endsWith('.png') || lowerName.endsWith('.webp') || file.type.includes('octet-stream')) {
+            try {
+                // For JFIF/HEIC/HEIF, upload as-is (no compression attempt via canvas to avoid issues)
+                if (lowerName.endsWith('.jfif') || lowerName.endsWith('.heic') || lowerName.endsWith('.heif')) {
+                    fileToUpload = file;
+                } else {
+                    const compressedFile = await compressImage(file, 800, 0.7);
+                    if (compressedFile) {
+                        fileToUpload = compressedFile;
+                    }
+                }
+            } catch (e) {
+                console.warn('Không thể xử lý ảnh, upload nguyên bản:', e);
+                fileToUpload = file;
+            }
         } else {
-            // Đọc mảng cấu trúc Object được bọc bên trong Document
-            dbCongViec = docSnap.data().danhSachMang || [];
-            console.log("Đã cập nhật dữ liệu từ đám mây thành công!", dbCongViec);
+            fileToUpload = file;
         }
-        renderAllTables();
+
+        const snapshot = await uploadBytes(storageRef, fileToUpload, metadata);
+        
+        // Lấy URL download
+        const downloadURL = await getDownloadURL(snapshot.ref);
+        return downloadURL;
     } catch (error) {
-        console.error("Lỗi nạp dữ liệu từ Cloud:", error);
+        console.error("Lỗi upload ảnh:", error);
+        alert("Upload ảnh thất bại: " + error.message);
+        return "";
     }
+}
+
+// Hàm nén ảnh trước khi upload để tăng tốc upload
+function compressImage(file, maxWidth = 800, quality = 0.7) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                
+                // Tính toán kích thước mới theo maxWidth
+                if (width > maxWidth) {
+                    height = (height * maxWidth) / width;
+                    width = maxWidth;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Chuyển canvas thành blob
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        // Tạo File mới từ blob
+                const compressedFile = new File([blob], file.name.replace(/\.jfif$/i, '.jpg').replace(/\.heic$/i, '.jpg').replace(/\.heif$/i, '.jpg'), {
+                    type: 'image/jpeg',
+                    lastModified: Date.now()
+                });
+                        resolve(compressedFile);
+                    } else {
+                        resolve(null);
+                    }
+                }, 'image/jpeg', quality);
+            };
+            img.onerror = () => resolve(null);
+        };
+        reader.onerror = () => resolve(null);
+    });
 }
 
 // ==========================================
@@ -172,10 +253,22 @@ async function handleAuth() {
         }
         closeAuthModal();
     } catch (error) {
-        console.error("Lỗi Auth:", error.code);
-        if (error.code === 'auth/invalid-credential') alert("Sai email hoặc mật khẩu!");
-        else if (error.code === 'auth/email-already-in-use') alert("Email này đã có người đăng ký!");
-        else alert("Lỗi hệ thống: " + error.message);
+        console.error("Lỗi Auth:", error.code, error.message);
+        if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+            alert("Sai email hoặc mật khẩu!");
+        } else if (error.code === 'auth/invalid-email') {
+            alert("Email không hợp lệ! Vui lòng nhập đúng định dạng email.");
+        } else if (error.code === 'auth/email-already-in-use') {
+            alert("Email này đã được đăng ký!");
+        } else if (error.code === 'auth/weak-password') {
+            alert("Mật khẩu quá yếu! Cần ít nhất 6 ký tự.");
+        } else if (error.code === 'auth/too-many-requests') {
+            alert("Đã thử đăng nhập quá nhiều lần. Vui lòng thử lại sau vài phút!");
+        } else if (error.code === 'auth/network-request-failed') {
+            alert("Lỗi kết nối mạng! Kiểm tra internet của bạn.");
+        } else {
+            alert("Lỗi xác thực: " + error.message);
+        }
     }
 }
 
@@ -237,13 +330,41 @@ async function taoCongViec() {
         alert("Mã danh bộ bắt buộc phải nhập đúng dạng số và đủ 11 chữ số!");
         return;
     }
+    
     const today = new Date().toISOString().split('T')[0];
-    const imageUrl = document.getElementById('jobImageUrl').value.trim();
+    const imageUrlInput = document.getElementById('jobImageUrl').value.trim();
+    const imageFile = document.getElementById('jobImageFile')?.files[0];
+    
+    let imageUrlFinal = imageUrlInput;
+    
+    // Ưu tiên upload file ảnh nếu có chọn file
+    if (imageFile) {
+        // Hiển thị trạng thái đang upload
+        const submitBtn = document.querySelector('#formGiaoViec button[type="submit"]');
+        const oldText = submitBtn ? submitBtn.textContent : "⏳ Đang xử lý...";
+        if (submitBtn) {
+            submitBtn.textContent = "⏳ Đang upload ảnh...";
+            submitBtn.disabled = true;
+        }
+        
+        imageUrlFinal = await uploadAnhDongHo(imageFile);
+        
+        if (submitBtn) {
+            submitBtn.textContent = oldText;
+            submitBtn.disabled = false;
+        }
+        
+        if (!imageUrlFinal) {
+            alert("Không thể upload ảnh, vui lòng thử lại hoặc dùng link ảnh!");
+            return;
+        }
+    }
+    
     const newJob = {
         stt: dbCongViec.length + 1,
         MaDanhBo: MaDanhBoStr,
         SoThan: document.getElementById('inputSoThan').value.trim(),
-        AnhDongHo: imageUrl,
+        AnhDongHo: imageUrlFinal,
         ViecGiao: document.getElementById('inputViecGiao').value.trim(),
         NgayGiao: today,
         BoPhan: document.getElementById('inputBoPhan').value,
@@ -255,6 +376,11 @@ async function taoCongViec() {
     dbCongViec.push(newJob);
     await luuVaoFirebase();
     document.getElementById('formGiaoViec')?.reset();
+    const previewImg = document.getElementById('previewImg');
+    if (previewImg) {
+        previewImg.style.display = "none";
+        previewImg.src = "";
+    }
     renderAllTables();
     alert("Thêm công việc thành công!");
 }
@@ -379,9 +505,11 @@ function xuatDuLieuExcel() {
 function renderAllTables() {
     const tbodyXuLy = document.getElementById('tbodyXuLy');
     const tbodyTheoDoi = document.getElementById('tbodyTheoDoi');
-    if (!tbodyXuLy || !tbodyTheoDoi) return;
-    tbodyXuLy.innerHTML = "";
-    tbodyTheoDoi.innerHTML = "";
+    if (!tbodyXuLy && !tbodyTheoDoi) return;
+    
+    if (tbodyXuLy) tbodyXuLy.innerHTML = "";
+    if (tbodyTheoDoi) tbodyTheoDoi.innerHTML = "";
+    
     const keyword = document.getElementById('filterKeyword') ? document.getElementById('filterKeyword').value.trim().toLowerCase() : "";
     const filterBoPhan = document.getElementById('filterBoPhan') ? document.getElementById('filterBoPhan').value : "ALL";
     const filterTrangThai = document.getElementById('filterTrangThai') ? document.getElementById('filterTrangThai').value : "ALL";
@@ -390,58 +518,95 @@ function renderAllTables() {
     
     let rendered = 0;
     dbCongViec.forEach((job, index) => {
-        const matchKeyword = job.MaDanhBo.toLowerCase().includes(keyword) ||
-            job.SoThan.toLowerCase().includes(keyword) ||
-            job.ViecGiao.toLowerCase().includes(keyword);
-        const matchBoPhan = filterBoPhan === "ALL" || job.BoPhan === filterBoPhan || job.BoPhan.includes(filterBoPhan);
+        const matchKeyword = (job.MaDanhBo || '').toLowerCase().includes(keyword) ||
+            (job.SoThan || '').toLowerCase().includes(keyword) ||
+            (job.ViecGiao || '').toLowerCase().includes(keyword);
+        const matchBoPhan = filterBoPhan === "ALL" || job.BoPhan === filterBoPhan || (job.BoPhan || '').includes(filterBoPhan);
         const matchTrangThai = filterTrangThai === "ALL" ||
             (filterTrangThai === "DONE" && job.hoanThanh) ||
             (filterTrangThai === "PROCESSING" && !job.hoanThanh);
         if (!matchKeyword || !matchBoPhan || !matchTrangThai) return;
         rendered++;
-// --- A. VẼ BẢNG XỬ LÝ ---
-        const trXuLy = document.createElement('tr');
-        trXuLy.innerHTML = `
-            <td>${job.MaDanhBo}</td>
-            <td>${job.SoThan}</td>
-            <td>${job.AnhDongHo ? `<img src="${job.AnhDongHo}" width="50" height="50" style="object-fit:cover; border-radius:4px;">` : 'N/A'}</td>
-            <td>${job.ViecGiao}</td>
-            <td>${job.BoPhan}</td>
-            <td style="width: 25%;">
-                <input type="text" value="${job.thongTinXuLy || ''}" onchange="capNhatXuLy(${index}, 'thongTinXuLy', this.value)" placeholder="Ghi chú xử lý (có thể dán link ảnh)..." style="width:100%;">
-            </td>
-            <td style="width: 20%;">
-                ${job.AnhCongTac ? `<img src="${job.AnhCongTac}" width="50" height="50" style="object-fit:cover; display:block; margin-bottom:5px; border-radius:4px;">` : 'N/A'}
-            </td>
-            <td>
-                ${!job.hoanThanh ? `<button onclick="xacNhanHoanThanh(${index})" class="btn btn-success btn-xs">Hoàn Thành</button>` : '<span class="badge badge-success">Đã xong</span>'}
-                <button onclick="xoaDongCongViec(${index})" class="btn btn-danger btn-xs" style="margin-left:5px;">Xóa</button>
-            </td>
-        `;
-        tbodyXuLy.appendChild(trXuLy);
+        // --- A. VẼ BẢNG XỬ LÝ ---
+        if (tbodyXuLy) {
+            const trXuLy = document.createElement('tr');
+            trXuLy.innerHTML = `
+                <td>${job.MaDanhBo || ''}</td>
+                <td>${job.SoThan || ''}</td>
+                <td>${job.AnhDongHo ? `<img src="${job.AnhDongHo}" width="50" height="50" style="object-fit:cover; border-radius:4px;">` : 'N/A'}</td>
+                <td>${job.ViecGiao || ''}</td>
+                <td>${job.BoPhan || ''}</td>
+                <td style="width: 25%;">
+                    <input type="text" value="${job.thongTinXuLy || ''}" onchange="capNhatXuLy(${index}, 'thongTinXuLy', this.value)" placeholder="Ghi chú xử lý (có thể dán link ảnh)..." style="width:100%;">
+                </td>
+                <td style="width: 20%;">
+                    ${job.AnhCongTac ? `<img src="${job.AnhCongTac}" width="50" height="50" style="object-fit:cover; display:block; margin-bottom:5px; border-radius:4px;">` : 'N/A'}
+                </td>
+                <td>
+                    ${!job.hoanThanh ? `<button onclick="xacNhanHoanThanh(${index})" class="btn btn-success btn-xs">Hoàn Thành</button>` : '<span class="badge badge-success">Đã xong</span>'}
+                    <button onclick="xoaDongCongViec(${index})" class="btn btn-danger btn-xs" style="margin-left:5px;">Xóa</button>
+                </td>
+            `;
+            tbodyXuLy.appendChild(trXuLy);
+        }
         // --- B. VẼ BẢNG THEO DÕI ---
-        const dotClass = job.hoanThanh ? 'status-done' : 'status-processing';
-        const textTrangThai = job.hoanThanh ? 'Đã Hoàn Thành' : 'Đang Xử Lý';
-        const trTheoDoi = document.createElement('tr');
-        trTheoDoi.innerHTML = `
-            <td>${job.stt}</td>
-            <td>${job.MaDanhBo}</td>
-            <td>${job.SoThan}</td>
-            <td>${job.AnhDongHo ? `<img src="${job.AnhDongHo}" width="50" height="50" style="object-fit:cover; border-radius:4px;">` : 'N/A'}</td>
-            <td>${job.ViecGiao}</td>
-            <td>${job.NgayGiao}</td>
-            <td>${job.BoPhan}</td>
-            <td><span class="status-dot ${dotClass}"></span> ${textTrangThai}</td>
-            <td>${job.thongTinXuLy || ''}</td>
-            <td>
-                ${!job.hoanThanh ? `<button onclick="xacNhanHoanThanh(${index})" class="btn btn-success btn-xs">Hoàn Thành</button>` : '<span class="badge badge-success">Đã xong</span>'}
-                <button onclick="xoaDongCongViec(${index})" class="btn btn-danger btn-xs" style="margin-left:5px;">Xóa</button>
-            </td>
-        `;
-        tbodyTheoDoi.appendChild(trTheoDoi);
+        if (tbodyTheoDoi) {
+            const dotClass = job.hoanThanh ? 'status-done' : 'status-processing';
+            const textTrangThai = job.hoanThanh ? 'Đã Hoàn Thành' : 'Đang Xử Lý';
+            const trTheoDoi = document.createElement('tr');
+            trTheoDoi.innerHTML = `
+                <td>${job.stt !== undefined ? job.stt : index + 1}</td>
+                <td>${job.MaDanhBo || ''}</td>
+                <td>${job.SoThan || ''}</td>
+                <td>${job.AnhDongHo ? `<img src="${job.AnhDongHo}" width="50" height="50" style="object-fit:cover; border-radius:4px;">` : 'N/A'}</td>
+                <td>${job.ViecGiao || ''}</td>
+                <td>${job.NgayGiao || ''}</td>
+                <td>${job.BoPhan || ''}</td>
+                <td><span class="status-dot ${dotClass}"></span> ${textTrangThai}</td>
+                <td>${job.thongTinXuLy || ''}</td>
+                <td>
+                    ${!job.hoanThanh ? `<button onclick="xacNhanHoanThanh(${index})" class="btn btn-success btn-xs">Hoàn Thành</button>` : '<span class="badge badge-success">Đã xong</span>'}
+                    <button onclick="xoaDongCongViec(${index})" class="btn btn-danger btn-xs" style="margin-left:5px;">Xóa</button>
+                </td>
+            `;
+            tbodyTheoDoi.appendChild(trTheoDoi);
+        }
     });
     console.log(`✅ Rendered: ${rendered}/${dbCongViec.length} rows`);
 }
+
+function bindFilterEvents() {
+    const filterKeyword = document.getElementById('filterKeyword');
+    const filterBoPhan = document.getElementById('filterBoPhan');
+    const filterTrangThai = document.getElementById('filterTrangThai');
+    if (filterKeyword) filterKeyword.addEventListener('input', renderAllTables);
+    if (filterBoPhan) filterBoPhan.addEventListener('change', renderAllTables);
+    if (filterTrangThai) filterTrangThai.addEventListener('change', renderAllTables);
+}
+
+// Xem trước ảnh khi chọn file
+document.addEventListener('DOMContentLoaded', () => {
+    const fileInput = document.getElementById('jobImageFile');
+    const previewImg = document.getElementById('previewImg');
+    if (fileInput && previewImg) {
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewImg.src = e.target.result;
+                    previewImg.style.display = "block";
+                };
+                reader.readAsDataURL(file);
+            } else {
+                previewImg.style.display = "none";
+            }
+        });
+    }
+    
+    bindFilterEvents();
+});
+
 // Đưa các hàm cần tương tác với HTML thẻ onClick ra môi trường Global (Window Window-Scope)
 window.openAuthModal = openAuthModal;
 window.closeAuthModal = closeAuthModal;
