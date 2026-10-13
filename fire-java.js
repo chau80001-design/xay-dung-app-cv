@@ -63,6 +63,9 @@ onAuthStateChanged(auth, async (user) => {
     dbCongViec = JSON.parse(localStorage.getItem('dbCongViec_Data')) || [];
     renderAllTables();
 
+    // Tải dữ liệu từ Firestore cho cả công khai và thành viên
+    await taiDuLieuTuFirebase();
+
     if (user) {
         console.log("Tìm thấy phiên đăng nhập cũ:", user.email);
         isLoggedIn = true;
@@ -77,15 +80,8 @@ onAuthStateChanged(auth, async (user) => {
         
         // Gắn sự kiện nút đăng xuất động
         document.getElementById('btnLogOut').addEventListener('click', handleLogout);
-
-        // Mở khóa phân hệ chức năng xử lý dữ liệu (Bảng Giao Việc chỉ mở khi nhấn nút tương ứng)
-        const secXuLy = document.getElementById('sectionXuLy');
-        if (secXuLy) secXuLy.classList.remove('disabled-section');
-
-        // Tải dữ liệu chính thức thời gian thực từ đám mây xuống
-        await taiDuLieuTuFirebase();
     } else {
-        console.log("Người dùng đang ở chế độ Khách (Vãng lai)");
+        console.log("Người dùng đang ở chế độ Khách (Vãng lai) - Đã tải dữ liệu công khai");
         isLoggedIn = false;
         currentUser = null;
     }
@@ -94,6 +90,27 @@ onAuthStateChanged(auth, async (user) => {
 // ==========================================
 // 5. CÁC HÀM XỬ LÝ ĐỒNG BỘ DỮ LIỆU ĐÁM MÂY
 // ==========================================
+
+// Hàm tải dữ liệu từ Firestore (dành cho cả công khai và thành viên)
+async function taiDuLieuTuFirebase() {
+    try {
+        const docRef = doc(db, FIREBASE_COLLECTION, FIREBASE_DOC_ID);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            if (data.danhSachMang && Array.isArray(data.danhSachMang)) {
+                dbCongViec = data.danhSachMang;
+                localStorage.setItem('dbCongViec_Data', JSON.stringify(dbCongViec));
+                renderAllTables();
+                console.log("Đã tải dữ liệu từ Firebase Firestore:", dbCongViec.length, "dòng");
+            }
+        } else {
+            console.log("Chưa có dữ liệu trên Firestore");
+        }
+    } catch (error) {
+        console.error("Lỗi tải dữ liệu từ Firestore:", error);
+    }
+}
 
 // Hàm đẩy toàn bộ mảng dữ liệu lên Cloud
 async function luuVaoFirebase() {
@@ -297,11 +314,7 @@ async function handleLogout() {
 // 6.5. HÀM MỞ BẢNG GIAO VIỆC TỪ NÚT TRÊN TRANG THEO DÕI
 // ==========================================
 function moBangGiaoViec() {
-    if (!isLoggedIn) {
-        openAuthModal('login');
-        return;
-    }
-    // Điều hướng sang trang giao việc riêng biệt
+    // Điều hướng sang trang giao việc riêng biệt (không cần đăng nhập)
     window.location.href = 'giaoviec.html';
 }
 
@@ -309,11 +322,7 @@ function moBangGiaoViec() {
 // 6.6. HÀM MỞ BẢNG XỬ LÝ TỪ NÚT TRÊN TRANG THEO DÕI
 // ==========================================
 function moBangXuLy() {
-    if (!isLoggedIn) {
-        openAuthModal('login');
-        return;
-    }
-    // Điều hướng sang trang xử lý công việc riêng biệt
+    // Điều hướng sang trang xử lý công việc riêng biệt (không cần đăng nhập)
     window.location.href = 'xuly.html';
 }
 
@@ -362,8 +371,19 @@ async function taoCongViec() {
     
     const newJob = {
         stt: dbCongViec.length + 1,
+        dot: document.getElementById('inputDot')?.value.trim() || '',
+        xa: document.getElementById('inputXa')?.value.trim() || '',
         MaDanhBo: MaDanhBoStr,
+        thongTinKhachHang: document.getElementById('inputThongTinKH')?.value.trim() || '',
+        sdtChuNha: document.getElementById('inputSdtChuNha')?.value.trim() || '',
+        hieu: document.getElementById('inputHieu')?.value.trim() || '',
+        co: document.getElementById('inputCo')?.value.trim() || '',
+        dm: document.getElementById('inputDm')?.value.trim() || '',
+        gb: document.getElementById('inputGb')?.value.trim() || '',
         SoThan: document.getElementById('inputSoThan').value.trim(),
+        thongTinNVDocSo: document.getElementById('inputThongTinNV')?.value.trim() || '',
+        noiDung: document.getElementById('inputViecGiao').value.trim(),
+        ngayThucHien: today,
         AnhDongHo: imageUrlFinal,
         ViecGiao: document.getElementById('inputViecGiao').value.trim(),
         NgayGiao: today,
@@ -371,7 +391,8 @@ async function taoCongViec() {
         thongTinXuLy: "",
         AnhCongTac: "",
         hoanThanh: false,
-        phanHoiKetQua: ""
+        phanHoiKetQua: "",
+        nguoiGiaoViec: currentUser ? currentUser.email : 'guest'
     };
     dbCongViec.push(newJob);
     await luuVaoFirebase();
@@ -399,6 +420,14 @@ async function xacNhanHoanThanh(index) {
 }
 // Xóa dòng công việc
 async function xoaDongCongViec(index) {
+    const job = dbCongViec[index];
+    
+    // Chỉ người giao việc mới được xóa (bất kể trạng thái)
+    if (!currentUser || job.nguoiGiaoViec !== currentUser.email) {
+        alert("Chỉ người giao việc (" + (job.nguoiGiaoViec || 'không rõ') + ") mới được xóa dòng công việc này!");
+        return;
+    }
+    
     if (confirm("Bạn có chắc chắn muốn xóa dòng công việc này không?")) {
         dbCongViec.splice(index, 1);
         dbCongViec.forEach((item, i) => item.stt = i + 1);
@@ -425,22 +454,34 @@ async function giaoViecKemAnhHangLoat() {
                 const today = new Date().toISOString().split('T')[0];
                 for (let i = 0; i < lines.length; i++) {
                     const parts = lines[i];
-                    const maDanhBoStr = parts[0] ? parts[0].toString().trim() : '';
+                    const maDanhBoStr = parts[3] ? parts[3].toString().trim() : ''; // DANH BỘ ở cột 4 (index 3)
                     if (maDanhBoStr.length !== 11 || isNaN(maDanhBoStr)) {
                         continue;
                     }
                     dbCongViec.push({
                         stt: dbCongViec.length + 1,
+                        dot: parts[0] ? parts[0].toString().trim() : '',
+                        xa: parts[1] ? parts[1].toString().trim() : '',
                         MaDanhBo: maDanhBoStr,
-                        SoThan: parts[1] ? parts[1].toString().trim() : '',
+                        thongTinKhachHang: parts[4] ? parts[4].toString().trim() : '',
+                        sdtChuNha: parts[5] ? parts[5].toString().trim() : '',
+                        hieu: parts[6] ? parts[6].toString().trim() : '',
+                        co: parts[7] ? parts[7].toString().trim() : '',
+                        dm: parts[8] ? parts[8].toString().trim() : '',
+                        gb: parts[9] ? parts[9].toString().trim() : '',
+                        SoThan: parts[10] ? parts[10].toString().trim() : '',
+                        thongTinNVDocSo: parts[11] ? parts[11].toString().trim() : '',
+                        noiDung: parts[12] ? parts[12].toString().trim() : '',
+                        ngayThucHien: parts[13] ? parts[13].toString().trim() : today,
                         AnhDongHo: "",
-                        ViecGiao: parts[2] ? parts[2].toString().trim() : 'Xử lý rò rỉ / cập nhật chỉ số',
+                        ViecGiao: parts[12] ? parts[12].toString().trim() : 'Xử lý rò rỉ / cập nhật chỉ số',
                         NgayGiao: today,
-                        BoPhan: parts[3] ? parts[3].toString().trim() : 'Đội Quản Lý',
+                        BoPhan: 'Đội Quản Lý',
                         thongTinXuLy: "",
                         AnhCongTac: "",
                         hoanThanh: false,
-                        phanHoiKetQua: ""
+                        phanHoiKetQua: "",
+                        nguoiGiaoViec: currentUser ? currentUser.email : 'guest'
                     });
                 }
                 await luuVaoFirebase();
@@ -479,12 +520,10 @@ function xuatDuLieuExcel() {
         alert("Hiện tại hệ thống không có dữ liệu để xuất file!");
         return;
     }
-    let csvContent = "STT,Mã Danh Bộ,Số Thân,Việc Giao,Ngày Giao,Bộ Phận,Trạng Thái,Ghi Chú Xử Lý\n";
+    let csvContent = "STT,ĐỢT,Xã,DANH BỘ,Thông tin KHÁCH HÀNG,SĐT chủ nhà,HIỆU,CỠ,ĐM,GB,SỐ THÂN,Thông tin NV đọc số,Nội dung,Ngày thực hiện\n";
     dbCongViec.forEach((job) => {
-        const trangThaiText = job.hoanThanh ? "Đã Hoàn Thành" : "Đang Xử Lý";
-        const viecGiaoClean = job.ViecGiao.replace(/,/g, "-");
-        const ghiChuClean = job.thongTinXuLy.replace(/,/g, "-");
-        csvContent += `${job.stt},"${job.MaDanhBo}","${job.SoThan}","${viecGiaoClean}","${job.NgayGiao}","${job.BoPhan}","${trangThaiText}","${ghiChuClean}"\n`;
+        const noiDungClean = (job.noiDung || job.thongTinXuLy || job.ViecGiao || '').replace(/,/g, "-");
+        csvContent += `${job.stt},"${job.dot || ''}","${job.xa || ''}","${job.MaDanhBo}","${job.thongTinKhachHang || ''}","${job.sdtChuNha || ''}","${job.hieu || ''}","${job.co || ''}","${job.dm || ''}","${job.gb || ''}","${job.SoThan}","${job.thongTinNVDocSo || ''}","${noiDungClean}","${job.ngayThucHien || job.NgayGiao || ''}"\n`;
     });
     const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
@@ -502,6 +541,30 @@ function xuatDuLieuExcel() {
 // ==========================================
 // 8. HÀM VẼ GIAO DIỆN CHÍNH (RENDER TABLES)
 // ==========================================
+
+// Hàm tính tuần từ ngày thực hiện và trả về class màu
+// Tuần 1: Vàng, Tuần 2: Xanh dương, Tuần 3: Cam, Tuần 4: Đỏ, Sau đó: Đen
+function getWeekColorClass(dateStr) {
+    if (!dateStr) return 'week-black';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return 'week-black';
+    
+    // Lấy ngày đầu tiên của tháng
+    const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+    // Tính số ngày từ đầu tháng
+    const diffDays = Math.floor((date - firstDayOfMonth) / (1000 * 60 * 60 * 24));
+    // Tuần (0-indexed): 0-6 = tuần 1, 7-13 = tuần 2, 14-20 = tuần 3, 21-27 = tuần 4, 28+ = tuần 5+
+    const weekIndex = Math.floor(diffDays / 7);
+    
+    switch (weekIndex) {
+        case 0: return 'week-yellow';   // Tuần 1: Vàng
+        case 1: return 'week-blue';     // Tuần 2: Xanh dương
+        case 2: return 'week-orange';   // Tuần 3: Cam
+        case 3: return 'week-red';      // Tuần 4: Đỏ
+        default: return 'week-black';   // Tuần 5+: Đen
+    }
+}
+
 function renderAllTables() {
     const tbodyXuLy = document.getElementById('tbodyXuLy');
     const tbodyTheoDoi = document.getElementById('tbodyTheoDoi');
@@ -518,9 +581,21 @@ function renderAllTables() {
     
     let rendered = 0;
     dbCongViec.forEach((job, index) => {
-        const matchKeyword = (job.MaDanhBo || '').toLowerCase().includes(keyword) ||
+        const matchKeyword = (job.dot || '').toLowerCase().includes(keyword) ||
+            (job.xa || '').toLowerCase().includes(keyword) ||
+            (job.MaDanhBo || '').toLowerCase().includes(keyword) ||
+            (job.thongTinKhachHang || '').toLowerCase().includes(keyword) ||
+            (job.sdtChuNha || '').toLowerCase().includes(keyword) ||
+            (job.hieu || '').toLowerCase().includes(keyword) ||
+            (job.co || '').toLowerCase().includes(keyword) ||
+            (job.dm || '').toLowerCase().includes(keyword) ||
+            (job.gb || '').toLowerCase().includes(keyword) ||
             (job.SoThan || '').toLowerCase().includes(keyword) ||
-            (job.ViecGiao || '').toLowerCase().includes(keyword);
+            (job.thongTinNVDocSo || '').toLowerCase().includes(keyword) ||
+            (job.noiDung || '').toLowerCase().includes(keyword) ||
+            (job.ngayThucHien || '').toLowerCase().includes(keyword) ||
+            (job.ViecGiao || '').toLowerCase().includes(keyword) ||
+            (job.thongTinXuLy || '').toLowerCase().includes(keyword);
         const matchBoPhan = filterBoPhan === "ALL" || job.BoPhan === filterBoPhan || (job.BoPhan || '').includes(filterBoPhan);
         const matchTrangThai = filterTrangThai === "ALL" ||
             (filterTrangThai === "DONE" && job.hoanThanh) ||
@@ -530,6 +605,13 @@ function renderAllTables() {
         // --- A. VẼ BẢNG XỬ LÝ ---
         if (tbodyXuLy) {
             const trXuLy = document.createElement('tr');
+            
+            // Chỉ người giao việc mới được xóa (bất kể trạng thái)
+            const canDelete = currentUser && job.nguoiGiaoViec === currentUser.email;
+            const deleteBtn = canDelete 
+                ? `<button onclick="xoaDongCongViec(${index})" class="btn btn-danger btn-xs" style="margin-left:5px;">Xóa</button>`
+                : `<span class="badge" style="background:#6c757d; margin-left:5px;">Chỉ ${job.nguoiGiaoViec || 'người giao'} được xóa</span>`;
+            
             trXuLy.innerHTML = `
                 <td>${job.MaDanhBo || ''}</td>
                 <td>${job.SoThan || ''}</td>
@@ -544,7 +626,7 @@ function renderAllTables() {
                 </td>
                 <td>
                     ${!job.hoanThanh ? `<button onclick="xacNhanHoanThanh(${index})" class="btn btn-success btn-xs">Hoàn Thành</button>` : '<span class="badge badge-success">Đã xong</span>'}
-                    <button onclick="xoaDongCongViec(${index})" class="btn btn-danger btn-xs" style="margin-left:5px;">Xóa</button>
+                    ${deleteBtn}
                 </td>
             `;
             tbodyXuLy.appendChild(trXuLy);
@@ -553,21 +635,28 @@ function renderAllTables() {
         if (tbodyTheoDoi) {
             const dotClass = job.hoanThanh ? 'status-done' : 'status-processing';
             const textTrangThai = job.hoanThanh ? 'Đã Hoàn Thành' : 'Đang Xử Lý';
+            
+            // Tính màu theo tuần từ ngày thực hiện
+            const dateStr = job.ngayThucHien || job.NgayGiao || '';
+            const weekColorClass = getWeekColorClass(dateStr);
+            
             const trTheoDoi = document.createElement('tr');
+            trTheoDoi.className = weekColorClass;
             trTheoDoi.innerHTML = `
                 <td>${job.stt !== undefined ? job.stt : index + 1}</td>
+                <td>${job.dot || ''}</td>
+                <td>${job.xa || ''}</td>
                 <td>${job.MaDanhBo || ''}</td>
+                <td>${job.thongTinKhachHang || ''}</td>
+                <td>${job.sdtChuNha || ''}</td>
+                <td>${job.hieu || ''}</td>
+                <td>${job.co || ''}</td>
+                <td>${job.dm || ''}</td>
+                <td>${job.gb || ''}</td>
                 <td>${job.SoThan || ''}</td>
-                <td>${job.AnhDongHo ? `<img src="${job.AnhDongHo}" width="50" height="50" style="object-fit:cover; border-radius:4px;">` : 'N/A'}</td>
-                <td>${job.ViecGiao || ''}</td>
-                <td>${job.NgayGiao || ''}</td>
-                <td>${job.BoPhan || ''}</td>
-                <td><span class="status-dot ${dotClass}"></span> ${textTrangThai}</td>
-                <td>${job.thongTinXuLy || ''}</td>
-                <td>
-                    ${!job.hoanThanh ? `<button onclick="xacNhanHoanThanh(${index})" class="btn btn-success btn-xs">Hoàn Thành</button>` : '<span class="badge badge-success">Đã xong</span>'}
-                    <button onclick="xoaDongCongViec(${index})" class="btn btn-danger btn-xs" style="margin-left:5px;">Xóa</button>
-                </td>
+                <td>${job.thongTinNVDocSo || ''}</td>
+                <td>${job.noiDung || job.thongTinXuLy || job.ViecGiao || ''}</td>
+                <td>${dateStr}</td>
             `;
             tbodyTheoDoi.appendChild(trTheoDoi);
         }
@@ -622,4 +711,5 @@ window.thucHienSapXep = thucHienSapXep;
 window.xuatDuLieuExcel = xuatDuLieuExcel;
 window.moBangGiaoViec = moBangGiaoViec;
 window.moBangXuLy = moBangXuLy;
+window.taiDuLieuTuFirebase = taiDuLieuTuFirebase;
 

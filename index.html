@@ -89,6 +89,15 @@
         .status-processing { background-color: #ffc107; }
         .status-done { background-color: #198754; }
 
+        /* Màu tuần theo ngày thực hiện */
+        .week-yellow { background-color: #fff3cd !important; color: #000 !important; }
+        .week-blue { background-color: #cce5ff !important; color: #000 !important; }
+        .week-orange { background-color: #ffe0b2 !important; color: #000 !important; }
+        .week-red { background-color: #f8d7da !important; color: #000 !important; }
+        .week-black { background-color: #e2e3e5 !important; color: #000 !important; }
+        
+        .week-yellow td, .week-blue td, .week-orange td, .week-red td, .week-black td { border-color: #dee2e6; }
+
         /* Cửa sổ đăng nhập (Modal Popup) */
         #overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1040; }
         #authModal { display: none; position: fixed; top: 20%; left: 50%; transform: translate(-50%, 0); width: 90%; max-width: 400px; z-index: 1050; background: white; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); border: 1px solid #ccc; }
@@ -130,7 +139,7 @@
         
         <!-- Lọc theo từ khóa -->
         <div style="flex: 1; min-width: 180px;">
-            <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">Tìm kiếm (Danh bộ, Số thân, Việc giao):</label>
+            <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">Tìm kiếm (Đợt, Xã, Danh bộ, KH, SĐT, Hiệu, Số thân, NV, Nội dung):</label>
             <input type="text" id="filterKeyword" class="form-control" placeholder="Nhập từ khóa..." style="font-size:12px; height:30px; width:100%;">
         </div>
 
@@ -139,9 +148,11 @@
             <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">Bộ Phận:</label>
             <select id="filterBoPhan" class="form-control" style="font-size:12px; height:30px; padding:2px 5px; width:100%;">
                 <option value="ALL">-- Tất cả --</option>
-                <option value="QLML">QLML</option>
-                <option value="KHVT">KHVT</option>
-                <option value="BKD">BKD</option>
+                <option value="Đội QLGT">Đội QLGT</option>
+                <option value="Đội QLML kv1">Đội QLML kv1</option>
+                <option value="Đội QLML kv2">Đội QLML kv2</option>
+                <option value="Ban KinhDoanh">Ban KinhDoanh</option>
+                <option value="Ban Kế hoạch vật tư">Ban Kế hoạch vật tư</option>
             </select>
         </div>
 
@@ -196,15 +207,19 @@
                     <thead>
                         <tr style="background-color: #f1f1f1;">
                             <th data-sort="stt" onclick="thucHienSapXep('stt')" style="cursor: pointer; user-select: none;">STT ⇅</th>
-                            <th data-sort="MaDanhBo" onclick="thucHienSapXep('MaDanhBo')" style="cursor: pointer; user-select: none;">Mã Danh Bộ ⇅</th>
-                            <th data-sort="SoThan" onclick="thucHienSapXep('SoThan')" style="cursor: pointer; user-select: none;">Số Thân ⇅</th>
-                            <th style="user-select: none;">Hình Ảnh</th>
-                            <th data-sort="ViecGiao" onclick="thucHienSapXep('ViecGiao')" style="cursor: pointer; user-select: none;">Việc Giao ⇅</th>
-                            <th data-sort="NgayGiao" onclick="thucHienSapXep('NgayGiao')" style="cursor: pointer; user-select: none;">Ngày Giao ⇅</th>
-                            <th data-sort="BoPhan" onclick="thucHienSapXep('BoPhan')" style="cursor: pointer; user-select: none;">Bộ Phận ⇅</th>
-                            <th data-sort="hoanThanh" onclick="thucHienSapXep('hoanThanh')" style="cursor: pointer; user-select: none;">Trạng Thái ⇅</th>
-                            <th style="user-select: none;">Phản Hồi Kết Quả</th>
-                            <th style="user-select: none;">Thao Tác</th>
+                            <th data-sort="dot" onclick="thucHienSapXep('dot')" style="cursor: pointer; user-select: none;">ĐỢT ⇅</th>
+                            <th data-sort="xa" onclick="thucHienSapXep('xa')" style="cursor: pointer; user-select: none;">Xã ⇅</th>
+                            <th data-sort="MaDanhBo" onclick="thucHienSapXep('MaDanhBo')" style="cursor: pointer; user-select: none;">DANH BỘ ⇅</th>
+                            <th data-sort="thongTinKhachHang" onclick="thucHienSapXep('thongTinKhachHang')" style="cursor: pointer; user-select: none;">Thông tin KHÁCH HÀNG ⇅</th>
+                            <th data-sort="sdtChuNha" onclick="thucHienSapXep('sdtChuNha')" style="cursor: pointer; user-select: none;">SĐT chủ nhà ⇅</th>
+                            <th data-sort="hieu" onclick="thucHienSapXep('hieu')" style="cursor: pointer; user-select: none;">HIỆU ⇅</th>
+                            <th data-sort="co" onclick="thucHienSapXep('co')" style="cursor: pointer; user-select: none;">CỠ ⇅</th>
+                            <th data-sort="dm" onclick="thucHienSapXep('dm')" style="cursor: pointer; user-select: none;">ĐM ⇅</th>
+                            <th data-sort="gb" onclick="thucHienSapXep('gb')" style="cursor: pointer; user-select: none;">GB ⇅</th>
+                            <th data-sort="SoThan" onclick="thucHienSapXep('SoThan')" style="cursor: pointer; user-select: none;">SỐ THÂN ⇅</th>
+                            <th data-sort="thongTinNVDocSo" onclick="thucHienSapXep('thongTinNVDocSo')" style="cursor: pointer; user-select: none;">Thông tin NV đọc số ⇅</th>
+                            <th data-sort="noiDung" onclick="thucHienSapXep('noiDung')" style="cursor: pointer; user-select: none;">Nội dung ⇅</th>
+                            <th data-sort="ngayThucHien" onclick="thucHienSapXep('ngayThucHien')" style="cursor: pointer; user-select: none;">Ngày thực hiện ⇅</th>
                         </tr>
                     </thead>
 
